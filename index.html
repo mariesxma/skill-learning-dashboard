@@ -26,7 +26,11 @@
         <input id="search" type="search" placeholder="Find a concept…" list="concept-list" autocomplete="off" />
         <datalist id="concept-list"></datalist>
         <label class="toggle"><input id="show-courses" type="checkbox" /> Show courses</label>
-        <button id="fit" class="btn ghost" title="Fit graph to screen">Fit view</button>
+        <div class="zoom-group" role="group" aria-label="Zoom">
+          <button id="zoom-out" class="btn ghost" title="Zoom out (−)" aria-label="Zoom out">−</button>
+          <button id="zoom-in" class="btn ghost" title="Zoom in (+)" aria-label="Zoom in">+</button>
+        </div>
+        <button id="fit" class="btn ghost" title="Fit graph to screen (0)">Fit view</button>
       </div>
 
       <svg id="graph" role="img" aria-label="Knowledge graph of domains, topics, concepts and courses">
@@ -44,7 +48,7 @@
         <span><i class="lg lg-course"></i>Course</span>
         <span><i class="lg lg-related"></i>Related</span>
       </div>
-      <p class="hint">Scroll to zoom · drag to pan · click a node for details</p>
+      <p class="hint">Pinch to zoom · two-finger scroll or drag to pan · click a node for details</p>
     </div>
 
     <aside id="panel" class="panel" aria-live="polite">

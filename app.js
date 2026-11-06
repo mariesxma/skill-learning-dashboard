@@ -335,11 +335,51 @@
 
   const pointers = new Map();
   let drag = null; // {mode:'node'|'pan'|'pinch', node, start, moved, ...}
+  // Trackpad-friendly controls (macOS style):
+  //   pinch (Chrome/Firefox send wheel + ctrlKey) or ⌘/Ctrl + scroll → zoom
+  //   two-finger scroll → pan
+  //   a classic mouse wheel (big, line-based or integer notches) → zoom
+  const isMouseWheel = (e) =>
+    e.deltaMode !== 0 || (e.deltaX === 0 && Number.isInteger(e.deltaY) && Math.abs(e.deltaY) >= 100 && Math.abs(e.deltaY) % 50 === 0);
   svg.addEventListener("wheel", (e) => {
     e.preventDefault();
     const r = svg.getBoundingClientRect();
-    zoomAt(e.clientX - r.left, e.clientY - r.top, view.k * Math.exp(-e.deltaY * 0.0015));
+    const sx = e.clientX - r.left, sy = e.clientY - r.top;
+    if (e.ctrlKey || e.metaKey) {
+      // pinch deltas are small and smooth; clamp so one gesture never jumps too far
+      const d = Math.max(-50, Math.min(50, e.deltaY));
+      zoomAt(sx, sy, view.k * Math.exp(-d * 0.012));
+    } else if (isMouseWheel(e)) {
+      const lines = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaY;
+      zoomAt(sx, sy, view.k * Math.exp(-lines * 0.0015));
+    } else {
+      view.x -= e.deltaX; view.y -= e.deltaY; applyView();
+    }
   }, { passive: false });
+
+  // Safari reports trackpad pinches as gesture events instead of ctrl+wheel
+  let gestureStartK = 1;
+  svg.addEventListener("gesturestart", (e) => { e.preventDefault(); gestureStartK = view.k; });
+  svg.addEventListener("gesturechange", (e) => {
+    e.preventDefault();
+    const r = svg.getBoundingClientRect();
+    zoomAt(e.clientX - r.left, e.clientY - r.top, gestureStartK * e.scale);
+  });
+  svg.addEventListener("gestureend", (e) => e.preventDefault());
+
+  // zoom buttons and keyboard shortcuts (+ / − / 0)
+  function zoomCenter(factor) {
+    const r = svg.getBoundingClientRect();
+    zoomAt(r.width / 2, r.height / 2, view.k * factor);
+  }
+  $("zoom-in").addEventListener("click", () => zoomCenter(1.25));
+  $("zoom-out").addEventListener("click", () => zoomCenter(0.8));
+  document.addEventListener("keydown", (e) => {
+    if (!$("view-graph").classList.contains("active") || /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return;
+    if (e.key === "+" || e.key === "=") zoomCenter(1.25);
+    else if (e.key === "-" || e.key === "_") zoomCenter(0.8);
+    else if (e.key === "0") fit();
+  });
 
   svg.addEventListener("pointerdown", (e) => {
     svg.setPointerCapture(e.pointerId);

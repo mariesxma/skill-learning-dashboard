@@ -99,6 +99,10 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
   border: 1px solid var(--border); background: var(--surface); color: var(--text);
 }
 .btn.ghost { box-shadow: var(--shadow); }
+.zoom-group { display: flex; box-shadow: var(--shadow); border-radius: 9px; }
+.zoom-group .btn { box-shadow: none; width: 36px; padding: 7px 0; font-size: 16px; line-height: 1; }
+.zoom-group .btn:first-child { border-radius: 9px 0 0 9px; }
+.zoom-group .btn:last-child { border-radius: 0 9px 9px 0; border-left: 0; }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .btn.small { padding: 3px 9px; font-size: 12px; box-shadow: none; }
 .btn.danger { color: #d33; }
