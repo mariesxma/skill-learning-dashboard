@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Skill Map</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">◎</span>
+      <h1 id="app-title">Skill Map</h1>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button class="tab active" role="tab" data-view="graph" aria-selected="true">Knowledge graph</button>
+      <button class="tab" role="tab" data-view="log" aria-selected="false">My learning log <span id="log-count" class="pill">0</span></button>
+    </nav>
+    <div id="stats" class="stats" aria-label="Progress by domain"></div>
+  </header>
+
+  <!-- ─────────── Graph view ─────────── -->
+  <main id="view-graph" class="view active">
+    <div class="graph-wrap">
+      <div class="toolbar">
+        <input id="search" type="search" placeholder="Find a concept…" list="concept-list" autocomplete="off" />
+        <datalist id="concept-list"></datalist>
+        <label class="toggle"><input id="show-courses" type="checkbox" /> Show courses</label>
+        <button id="fit" class="btn ghost" title="Fit graph to screen">Fit view</button>
+      </div>
+
+      <svg id="graph" role="img" aria-label="Knowledge graph of domains, topics, concepts and courses">
+        <g id="viewport">
+          <g id="links"></g>
+          <g id="nodes"></g>
+        </g>
+      </svg>
+
+      <div class="legend">
+        <span><i class="lg lg-domain"></i>Domain</span>
+        <span><i class="lg lg-topic"></i>Topic</span>
+        <span><i class="lg lg-concept"></i>Concept</span>
+        <span><i class="lg lg-learned"></i>Skill gained</span>
+        <span><i class="lg lg-course"></i>Course</span>
+        <span><i class="lg lg-related"></i>Related</span>
+      </div>
+      <p class="hint">Scroll to zoom · drag to pan · click a node for details</p>
+    </div>
+
+    <aside id="panel" class="panel" aria-live="polite">
+      <div id="panel-body"></div>
+    </aside>
+  </main>
+
+  <!-- ─────────── Learning log view ─────────── -->
+  <main id="view-log" class="view">
+    <section class="log-wrap">
+      <form id="log-form" class="card log-form">
+        <h2 id="form-title">Add a course to your learning path</h2>
+        <div class="row">
+          <label class="grow">Course link
+            <input id="f-url" type="url" required placeholder="https://www.udemy.com/course/…" />
+          </label>
+        </div>
+        <div class="row">
+          <label class="grow">Title
+            <input id="f-title" type="text" required placeholder="Filled in from the link; edit as needed" />
+          </label>
+          <label>Provider
+            <input id="f-provider" type="text" placeholder="Udemy" />
+          </label>
+        </div>
+        <div class="row">
+          <label>Domain
+            <select id="f-domain"></select>
+          </label>
+          <label>Status
+            <select id="f-status">
+              <option value="planned">Planned</option>
+              <option value="in-progress">In progress</option>
+              <option value="completed">Completed</option>
+            </select>
+          </label>
+          <label>Started
+            <input id="f-start" type="date" />
+          </label>
+          <label>Finished
+            <input id="f-end" type="date" />
+          </label>
+        </div>
+        <fieldset class="concept-picker">
+          <legend>Concepts this course covers <small>(these become skills gained when completed)</small></legend>
+          <input id="f-concept-filter" type="search" placeholder="Filter concepts…" />
+          <div id="f-concepts" class="chips"></div>
+        </fieldset>
+        <label>Notes
+          <textarea id="f-notes" rows="3" placeholder="Key takeaways, projects built, certificate link…"></textarea>
+        </label>
+        <div class="row actions">
+          <button type="submit" class="btn primary" id="f-submit">Add to my path</button>
+          <button type="button" class="btn ghost" id="f-cancel" hidden>Cancel edit</button>
+        </div>
+      </form>
+
+      <section class="card">
+        <div class="log-head">
+          <h2>My learning path</h2>
+          <div class="log-tools">
+            <select id="log-filter" aria-label="Filter by status">
+              <option value="all">All</option>
+              <option value="planned">Planned</option>
+              <option value="in-progress">In progress</option>
+              <option value="completed">Completed</option>
+            </select>
+            <button class="btn ghost" id="export">Export JSON</button>
+            <label class="btn ghost file-btn">Import JSON<input id="import" type="file" accept="application/json,.json" hidden /></label>
+          </div>
+        </div>
+        <ol id="log-list" class="timeline"></ol>
+        <p id="log-empty" class="empty">No courses yet. Paste your first Udemy (or any) course link above.</p>
+      </section>
+    </section>
+  </main>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
