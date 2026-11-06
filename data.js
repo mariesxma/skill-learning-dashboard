@@ -14,7 +14,7 @@ window.LEARNING_DATA = {
   title: "My Skill Map",
 
   domains: [
-    { id: "ai", name: "Artificial Intelligence", color: "#7c5cff", anchor: [-460, -60],
+    { id: "ai", name: "Artificial Intelligence", color: "#7c5cff", anchor: [-520, -60],
       summary: "Teaching computers to learn patterns from data, from classic machine learning to deep learning and large language models." },
     { id: "fin", name: "Finance", color: "#0f9f6e", anchor: [460, -60],
       summary: "How money, markets and companies work: valuing assets, managing risk, and building portfolios." },
@@ -26,6 +26,7 @@ window.LEARNING_DATA = {
     { id: "ai-found", domain: "ai", name: "ML Foundations" },
     { id: "ai-deep", domain: "ai", name: "Deep Learning" },
     { id: "ai-llm", domain: "ai", name: "LLMs & GenAI" },
+    { id: "ai-agentic", domain: "ai", name: "Agentic AI & AI Engineering" },
     { id: "fin-core", domain: "fin", name: "Core Finance" },
     { id: "fin-mkt", domain: "fin", name: "Markets & Investing" },
     { id: "fin-quant", domain: "fin", name: "Quantitative Finance" }
@@ -56,7 +57,21 @@ window.LEARNING_DATA = {
     { id: "fine-tuning", topic: "ai-llm", label: "Fine-tuning", definition: "Continuing to train a pre-trained model on task-specific data to adapt it to your use case.", related: ["transfer-learning"] },
     { id: "prompting", topic: "ai-llm", label: "Prompt engineering", definition: "Designing instructions, context and examples so an LLM produces reliable, useful output." },
     { id: "rag", topic: "ai-llm", label: "RAG", definition: "Retrieval-Augmented Generation: fetching relevant documents at query time and giving them to the LLM so answers are grounded in your data.", related: ["embedding", "prompting"] },
-    { id: "agents", topic: "ai-llm", label: "AI agents", definition: "LLM systems that plan and take actions with tools (search, code, APIs) in a loop to complete multi-step tasks.", related: ["prompting"] },
+
+    // ── AI · Agentic AI & AI Engineering
+    { id: "agents", topic: "ai-agentic", label: "AI agents", definition: "LLM systems that plan and take actions with tools (search, code, APIs) in a loop to complete multi-step tasks.", related: ["prompting"] },
+    { id: "tool-use", topic: "ai-agentic", label: "Tool use / function calling", definition: "Letting a model call functions you define (search, database, APIs) by returning structured arguments; your code runs the tool and feeds the result back.", related: ["agents"] },
+    { id: "mcp", topic: "ai-agentic", label: "Model Context Protocol (MCP)", definition: "An open standard for connecting AI apps to tools and data. MCP servers expose tools, resources and prompts that any MCP-compatible client or agent can use, instead of writing a custom integration for each.", related: ["tool-use", "agents"] },
+    { id: "agent-patterns", topic: "ai-agentic", label: "Agent design patterns", definition: "Reusable ways to structure agents: the ReAct loop (reason → act → observe), planner–executor, routing, reflection / self-critique, and human-in-the-loop checkpoints.", related: ["agents"] },
+    { id: "orchestration", topic: "ai-agentic", label: "Workflows & orchestration", definition: "Chaining LLM calls and tools into reliable pipelines (prompt chaining, routing, parallel steps), often with frameworks such as LangGraph. Workflows follow fixed paths; agents choose their own.", related: ["agent-patterns"] },
+    { id: "multi-agent", topic: "ai-agentic", label: "Multi-agent systems", definition: "Several specialized agents (e.g. researcher, coder, reviewer) coordinated by an orchestrator or talking to each other to split up a large task.", related: ["orchestration", "agents"] },
+    { id: "context-eng", topic: "ai-agentic", label: "Context engineering & memory", definition: "Deciding what goes into the model's limited context window: instructions, retrieved documents, tool results, conversation history, and long-term memory stored between sessions.", related: ["rag", "prompting"] },
+    { id: "vector-db", topic: "ai-agentic", label: "Vector databases", definition: "Databases that store embeddings and find the most similar ones fast (e.g. pgvector, Pinecone, Chroma). The retrieval layer behind RAG and agent memory.", related: ["embedding", "rag"] },
+    { id: "evals", topic: "ai-agentic", label: "LLM evaluation (evals)", definition: "Systematically testing AI outputs with test sets, graders (code, human or LLM-as-judge) and metrics, so you can tell whether a change made the system better.", related: ["precision-recall"] },
+    { id: "guardrails", topic: "ai-agentic", label: "Guardrails & AI safety", definition: "Controls that keep AI systems safe and on-task: input/output filtering, permissions on tools, prompt-injection defenses, and approval steps for risky actions.", related: ["tool-use"] },
+    { id: "llmops", topic: "ai-agentic", label: "LLMOps & observability", definition: "Running AI apps in production: deployment, tracing each LLM and tool call, monitoring cost, latency and quality, and versioning prompts and models.", related: ["evals"] },
+    { id: "ai-architecture", topic: "ai-agentic", label: "AI solution architecture", definition: "Designing the end-to-end system around a model: choosing models, data and retrieval, tools/MCP integrations, security, scaling and cost, and how it fits the customer's existing stack.", related: ["llmops", "rag", "mcp", "guardrails"] },
+    { id: "fde", topic: "ai-agentic", label: "Forward deployed engineering", definition: "Engineers who embed with customers to discover their problems, then design, build and deploy AI solutions in the customer's real environment, mixing solution architecture, hands-on coding and stakeholder work.", related: ["ai-architecture"] },
 
     // ── Finance · Core
     { id: "tvm", topic: "fin-core", label: "Time value of money", definition: "A dollar today is worth more than a dollar tomorrow, because it can be invested. This is the basis of discounting." },
@@ -88,7 +103,7 @@ window.LEARNING_DATA = {
     { id: "sentiment", domain: "aifin", label: "Financial sentiment (NLP)", definition: "Using language models to read news, earnings calls and filings and turn their tone into trading or risk signals.", related: ["transformer", "embedding", "stocks"] },
     { id: "robo-advisor", domain: "aifin", label: "Robo-advisors", definition: "Automated platforms that build and rebalance diversified portfolios from a client's goals and risk tolerance.", related: ["diversification", "etf", "agents"] },
     { id: "risk-modeling", domain: "aifin", label: "ML risk modeling", definition: "Using machine learning to forecast volatility, losses and stress scenarios beyond classic statistical models.", related: ["volatility", "monte-carlo", "neural-net", "feature-eng"] },
-    { id: "fin-llm", domain: "aifin", label: "LLMs for finance", definition: "Applying LLMs and RAG to research reports, filings and customer service, such as summarizing a 10-K or answering questions over it.", related: ["rag", "statements", "agents"] }
+    { id: "fin-llm", domain: "aifin", label: "LLMs for finance", definition: "Applying LLMs and RAG to research reports, filings and customer service, such as summarizing a 10-K or answering questions over it.", related: ["rag", "statements", "agents", "mcp"] }
   ],
 
   courses: [
@@ -106,7 +121,13 @@ window.LEARNING_DATA = {
     { id: "c-hf", title: "Hugging Face LLM Course", provider: "Hugging Face", url: "https://huggingface.co/learn", cost: "Free", level: "Advanced",
       covers: ["transformer", "tokenization", "fine-tuning", "embedding", "agents"] },
     { id: "c-anthropic", title: "Anthropic Courses (prompting, RAG, tool use)", provider: "Anthropic on GitHub", url: "https://github.com/anthropics/courses", cost: "Free", level: "Intermediate",
-      covers: ["prompting", "rag", "agents"] },
+      covers: ["prompting", "rag", "agents", "tool-use"] },
+    { id: "c-mcp-docs", title: "Model Context Protocol: official docs & tutorials", provider: "modelcontextprotocol.io", url: "https://modelcontextprotocol.io/", cost: "Free", level: "Beginner",
+      covers: ["mcp", "tool-use"] },
+    { id: "c-mcp-dlai", title: "MCP: Build Rich-Context AI Apps with Anthropic", provider: "DeepLearning.AI", url: "https://www.deeplearning.ai/short-courses/mcp-build-rich-context-ai-apps-with-anthropic/", cost: "Free", level: "Intermediate",
+      covers: ["mcp", "tool-use", "agents"] },
+    { id: "c-effective-agents", title: "Building Effective Agents (guide)", provider: "Anthropic", url: "https://www.anthropic.com/engineering/building-effective-agents", cost: "Free", level: "Intermediate",
+      covers: ["agents", "agent-patterns", "orchestration", "tool-use", "multi-agent"] },
 
     // Finance
     { id: "c-khan", title: "Khan Academy: Finance & Capital Markets", provider: "Khan Academy", url: "https://www.khanacademy.org/economics-finance-domain/core-finance", cost: "Free", level: "Beginner",

@@ -215,3 +215,22 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
   .hint { display: none; }
   .legend { bottom: 8px; left: 8px; gap: 6px; font-size: 11px; }
 }
+
+/* ── Curriculum sync & your own nodes ── */
+#f-add-concept { margin-top: 8px; }
+.curriculum { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+.curriculum summary { cursor: pointer; font-weight: 700; }
+.curriculum summary small { font-weight: 400; color: var(--muted); }
+.curriculum .help { color: var(--muted); font-size: 13px; margin: 8px 0; }
+.curriculum textarea { width: 100%; margin-bottom: 8px; }
+.coverage { display: grid; gap: 8px; margin-top: 8px; }
+.coverage p { margin: 0; }
+.cov-ok { color: #0f9f6e; font-weight: 600; }
+.cov-miss { color: var(--text); }
+.cov-target label { display: grid; gap: 4px; font-size: 12px; font-weight: 600; color: var(--muted); flex: 1 1 200px; }
+.cov-rows { display: grid; gap: 6px; max-height: 280px; overflow-y: auto; }
+.cov-row { display: flex !important; align-items: center; gap: 8px; }
+.cov-row input[type=text] { flex: 1; }
+.custom-note { color: var(--muted); font-size: 13px; }
+.custom-edit { display: grid; gap: 8px; }
+.custom-edit input, .custom-edit textarea { width: 100%; }

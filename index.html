@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Skill Map</title>
-  <link rel="stylesheet" href="styles.css?v=3" />
+  <link rel="stylesheet" href="styles.css?v=4" />
 </head>
 <body>
   <header class="topbar">
@@ -96,7 +96,15 @@
           <legend>Concepts this course covers <small>(these become skills gained when completed)</small></legend>
           <input id="f-concept-filter" type="search" placeholder="Filter concepts…" />
           <div id="f-concepts" class="chips"></div>
+          <button type="button" class="btn small" id="f-add-concept">+ Concept not on the map</button>
         </fieldset>
+        <details id="curriculum" class="curriculum">
+          <summary>Sync from the course curriculum <small>to find concepts, topics or domains missing from your map</small></summary>
+          <p class="help">On the course page, open the curriculum and copy the section and lecture titles, then paste them here. Lines that match your map get ticked above. Anything new can be added to the map as new concepts, under an existing topic or a new topic or domain.</p>
+          <textarea id="f-curriculum" rows="6" placeholder="Section 1: Introduction to Agentic AI&#10;Section 2: Model Context Protocol (MCP)&#10;Building your first MCP server&#10;…"></textarea>
+          <div class="row"><button type="button" class="btn" id="f-check">Check coverage</button></div>
+          <div id="f-coverage" class="coverage" aria-live="polite"></div>
+        </details>
         <label>Notes
           <textarea id="f-notes" rows="3" placeholder="Key takeaways, projects built, certificate link…"></textarea>
         </label>
@@ -126,7 +134,7 @@
     </section>
   </main>
 
-  <script src="data.js?v=3"></script>
-  <script src="app.js?v=3"></script>
+  <script src="data.js?v=4"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>

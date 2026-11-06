@@ -5,7 +5,7 @@
   const SVGNS = "http://www.w3.org/2000/svg";
 
   // ───────────────────────── storage (per browser) ─────────────────────────
-  const KEYS = { status: "skillmap.courseStatus", learned: "skillmap.learned", log: "skillmap.log" };
+  const KEYS = { status: "skillmap.courseStatus", learned: "skillmap.learned", log: "skillmap.log", custom: "skillmap.custom" };
   const store = {
     get(k, fallback) {
       try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
@@ -20,6 +20,7 @@
     store.set(KEYS.status, courseStatus);
     store.set(KEYS.learned, [...manualLearned]);
     store.set(KEYS.log, log);
+    store.set(KEYS.custom, custom);
   };
 
   // ───────────────────────── lookups ─────────────────────────
@@ -28,6 +29,97 @@
   const topicById = byId(D.topics);
   const conceptById = byId(D.concepts);
   const conceptDomain = (c) => c.domain || topicById[c.topic].domain;
+
+  // ───────────────────────── your own domains / topics / concepts ─────────────────────────
+  // Created from your courses. Saved in this browser; Export JSON backs them up and
+  // lets them be merged into data.js permanently.
+  const DOMAIN_COLORS = ["#d946ef", "#0891b2", "#dc2626", "#4f46e5", "#65a30d", "#ea580c", "#0d9488", "#be185d"];
+  const DOMAIN_SLOTS = [[0, -520], [-600, 520], [600, 520], [-1040, -60], [1040, -60], [0, 820], [-1040, 560], [1040, 560], [-560, -600], [560, -600]];
+  const arr = (x) => (Array.isArray(x) ? x : []);
+  let custom = store.get(KEYS.custom, {}) || {};
+  custom = { domains: arr(custom.domains), topics: arr(custom.topics), concepts: arr(custom.concepts) };
+
+  function registerDomain(d) {
+    if (!d || !d.id || !d.name || domainById[d.id]) return false;
+    d.custom = true;
+    if (!Array.isArray(d.anchor)) d.anchor = freeSlot();
+    if (!d.color) d.color = freeColor();
+    D.domains.push(d); domainById[d.id] = d; return true;
+  }
+  function registerTopic(t) {
+    if (!t || !t.id || !t.name || topicById[t.id] || !domainById[t.domain]) return false;
+    t.custom = true; D.topics.push(t); topicById[t.id] = t; return true;
+  }
+  function registerConcept(c) {
+    if (!c || !c.id || !c.label || conceptById[c.id] || !topicById[c.topic]) return false;
+    c.custom = true; c.definition = c.definition || ""; D.concepts.push(c); conceptById[c.id] = c; return true;
+  }
+  function freeSlot() {
+    const used = D.domains.map((d) => d.anchor);
+    const slot = DOMAIN_SLOTS.find(([x, y]) => used.every(([ux, uy]) => Math.hypot(ux - x, uy - y) > 300));
+    if (slot) return [...slot];
+    const a = D.domains.length * 2.4;
+    return [Math.round(Math.cos(a) * 1200), Math.round(Math.sin(a) * 900)];
+  }
+  function freeColor() {
+    const used = new Set(D.domains.map((d) => d.color));
+    return DOMAIN_COLORS.find((c) => !used.has(c)) || DOMAIN_COLORS[D.domains.length % DOMAIN_COLORS.length];
+  }
+  custom.domains = custom.domains.filter(registerDomain);
+  custom.topics = custom.topics.filter(registerTopic);
+  custom.concepts = custom.concepts.filter(registerConcept);
+
+  const slugify = (t) => t.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "item";
+  function uniqueId(label, taken) {
+    const base = "my-" + slugify(label);
+    let id = base, i = 2;
+    while (taken[id]) id = base + "-" + i++;
+    return id;
+  }
+  function addDomain(name, source) {
+    const d = { id: uniqueId(name, domainById), name, summary: source ? `Added from “${source}”.` : "Added by you.", source };
+    registerDomain(d); custom.domains.push(d); return d.id;
+  }
+  function addTopic(name, domain, source) {
+    const t = { id: uniqueId(name, topicById), domain, name, source };
+    registerTopic(t); custom.topics.push(t); return t.id;
+  }
+  function addConcept(label, topic, source, definition = "") {
+    const existing = D.concepts.find((c) => c.label.toLowerCase() === label.toLowerCase());
+    if (existing) return existing.id;
+    const c = { id: uniqueId(label, conceptById), topic, label, definition, source };
+    registerConcept(c); custom.concepts.push(c); return c.id;
+  }
+  function removeCustom(kind, id) {
+    let conceptIds = [];
+    if (kind === "concept") conceptIds = [id];
+    if (kind === "topic") conceptIds = D.concepts.filter((c) => c.topic === id).map((c) => c.id);
+    if (kind === "domain") {
+      const topicIds = D.topics.filter((t) => t.domain === id).map((t) => t.id);
+      conceptIds = D.concepts.filter((c) => topicIds.includes(c.topic)).map((c) => c.id);
+      topicIds.forEach((t) => { delete topicById[t]; });
+      D.topics = D.topics.filter((t) => !topicIds.includes(t.id));
+      custom.topics = custom.topics.filter((t) => !topicIds.includes(t.id));
+      D.domains = D.domains.filter((d) => d.id !== id); delete domainById[id];
+      custom.domains = custom.domains.filter((d) => d.id !== id);
+      log.forEach((e) => { if (e.domain === id) e.domain = D.domains[0].id; });
+    }
+    if (kind === "topic") {
+      D.topics = D.topics.filter((t) => t.id !== id); delete topicById[id];
+      custom.topics = custom.topics.filter((t) => t.id !== id);
+    }
+    D.concepts = D.concepts.filter((c) => !conceptIds.includes(c.id));
+    conceptIds.forEach((c) => { delete conceptById[c]; manualLearned.delete(c); });
+    custom.concepts = custom.concepts.filter((c) => !conceptIds.includes(c.id));
+    log.forEach((e) => { e.concepts = (e.concepts || []).filter((c) => !conceptIds.includes(c)); });
+    afterCustomChange();
+  }
+  function afterCustomChange() {
+    save(); refreshDomainOptions(); refreshDatalist();
+    if (selectedId && !nodeById[selectedId]) selectedId = null;
+    rebuild();
+    if (selectedId && !nodeById[selectedId]) { selectedId = null; renderPanel(); }
+  }
   const LEVELS = { Beginner: 0, Intermediate: 1, Advanced: 2 };
   const STATUS_LABEL = { none: "Not started", planned: "Planned", "in-progress": "In progress", completed: "Completed" };
 
@@ -255,14 +347,14 @@
       const pct = s("text", { "text-anchor": "middle", dy: 5, style: "fill:#fff;stroke:none;font-size:13px;font-weight:700" });
       pct.textContent = Math.round(p.frac * 100) + "%";
       g.append(pct);
-      g.append(label(n.label, { "text-anchor": "middle", y: R + 20 }));
+      g.append(label((n.ref.custom ? "★ " : "") + n.label, { "text-anchor": "middle", y: R + 20 }));
     } else if (n.type === "topic") {
-      g.append(s("circle", { class: "shape", r: n.r, style: "fill:var(--surface)", stroke: color, "stroke-width": 3 }));
+      g.append(s("circle", { class: "shape", r: n.r, style: "fill:var(--surface)", stroke: color, "stroke-width": 3, "stroke-dasharray": n.ref.custom ? "4 3" : null }));
       g.append(label(n.label, { "text-anchor": "middle", y: n.r + 16 }));
     } else if (n.type === "concept") {
       const learned = isLearned(n.ref.id);
       if (learned) g.append(s("circle", { r: n.r + 6, fill: color, "fill-opacity": 0.22 }));
-      g.append(s("circle", { class: "shape", r: n.r, stroke: color, "stroke-width": 2.2,
+      g.append(s("circle", { class: "shape", r: n.r, stroke: color, "stroke-width": 2.2, "stroke-dasharray": n.ref.custom && !learned ? "3 2" : null,
         style: learned ? `fill:${color}` : "fill:var(--surface)" }));
       g.append(label(n.label, { x: n.r + 5, y: 4 }));
     } else {
@@ -524,7 +616,7 @@
       const courses = sortCourses(allCourses().filter((k) => k.covers.includes(c.id)));
       panelBody.append(head, h("h3", { text: c.label }),
         h("div", null, domainChip(conceptDomain(c)), c.topic ? h("span", { class: "chip", style: "cursor:default", text: topicById[c.topic].name }) : null),
-        h("p", { class: "def", text: c.definition }),
+        h("p", { class: "def", text: c.definition || "No definition yet. Add one under “Your addition” below." }),
         h("div", { style: "display:flex;gap:8px;align-items:center;flex-wrap:wrap" },
           h("span", { class: "badge" + (learned ? " ok" : ""), text: learned ? "✓ Skill gained" : "Not learned yet" }),
           via.length ? null : h("button", { class: "btn small", onclick: () => {
@@ -544,6 +636,30 @@
         section("Skills this course gives you", ...c.covers.map(conceptChip)),
         c.mine ? h("button", { class: "btn small", onclick: () => { switchView("log"); startEdit(c.logId); }, text: "Edit in learning log" }) : null);
     }
+    if (n.ref.custom) panelBody.append(customControls(n));
+  }
+
+  function customControls(n) {
+    const kind = n.type, ref = n.ref;
+    const what = { domain: "domain", topic: "topic", concept: "concept" }[kind];
+    const box = section("Your addition",
+      h("p", { class: "custom-note", text: "★ You added this" + (ref.source ? ` from “${ref.source}”` : "") + ". It's saved in this browser; use Export JSON to back it up or make it permanent." }));
+    const nameInput = h("input", { type: "text", value: kind === "concept" ? ref.label : ref.name, "aria-label": "Name" });
+    const defInput = h("textarea", { rows: 3, placeholder: "Definition, in your own words…", "aria-label": "Definition" });
+    defInput.value = kind === "concept" ? ref.definition : (ref.summary || "");
+    box.append(h("div", { class: "custom-edit" }, nameInput, kind === "topic" ? null : defInput,
+      h("div", { class: "row" },
+        h("button", { class: "btn small", text: "Save", onclick: () => {
+          const name = nameInput.value.trim(); if (!name) return;
+          if (kind === "concept") { ref.label = name; ref.definition = defInput.value.trim(); }
+          else { ref.name = name; if (kind === "domain") ref.summary = defInput.value.trim(); }
+          n.label = name; afterCustomChange();
+        } }),
+        h("button", { class: "btn small danger", text: "Remove " + what, onclick: () => {
+          const extra = kind === "concept" ? "" : ` and everything inside it`;
+          if (confirm(`Remove “${n.label}”${extra} from your map?`)) removeCustom(kind, ref.id);
+        } }))));
+    return box;
   }
 
   function renderIntro() {
@@ -583,7 +699,11 @@
 
   // ───────────────────────── toolbar ─────────────────────────
   const dl = $("concept-list");
-  D.concepts.forEach((c) => dl.append(h("option", { value: c.label })));
+  function refreshDatalist() {
+    dl.textContent = "";
+    D.concepts.forEach((c) => dl.append(h("option", { value: c.label })));
+  }
+  refreshDatalist();
   $("search").addEventListener("change", (e) => {
     const q = e.target.value.trim().toLowerCase(); if (!q) return;
     const c = D.concepts.find((x) => x.label.toLowerCase() === q) || D.concepts.find((x) => x.label.toLowerCase().includes(q));
@@ -607,11 +727,18 @@
   const form = $("log-form");
   const f = {
     url: $("f-url"), title: $("f-title"), provider: $("f-provider"), domain: $("f-domain"), status: $("f-status"),
-    start: $("f-start"), end: $("f-end"), notes: $("f-notes"), filter: $("f-concept-filter"), concepts: $("f-concepts")
+    start: $("f-start"), end: $("f-end"), notes: $("f-notes"), filter: $("f-concept-filter"), concepts: $("f-concepts"),
+    curriculum: $("f-curriculum"), coverage: $("f-coverage")
   };
   let formConcepts = new Set(), conceptsTouched = false, autoTitle = "", editingId = null;
 
-  D.domains.forEach((d) => f.domain.append(h("option", { value: d.id, text: d.name })));
+  function refreshDomainOptions() {
+    const keep = f.domain.value;
+    f.domain.textContent = "";
+    D.domains.forEach((d) => f.domain.append(h("option", { value: d.id, text: d.name })));
+    if (domainById[keep]) f.domain.value = keep;
+  }
+  refreshDomainOptions();
 
   const PROVIDERS = {
     "udemy.com": "Udemy", "coursera.org": "Coursera", "edx.org": "edX", "youtube.com": "YouTube", "youtu.be": "YouTube",
@@ -619,7 +746,7 @@
     "pluralsight.com": "Pluralsight", "udacity.com": "Udacity", "deeplearning.ai": "DeepLearning.AI", "skillshare.com": "Skillshare",
     "github.com": "GitHub", "ocw.mit.edu": "MIT OpenCourseWare", "freecodecamp.org": "freeCodeCamp"
   };
-  const ACRONYMS = new Set(["ai", "ml", "llm", "llms", "nlp", "sql", "aws", "gpt", "api", "cfa", "frm", "etf", "dcf", "esg", "ui", "ux", "r", "2024", "2025", "2026"]);
+  const ACRONYMS = new Set(["fde", "mcp", "rag", "llmops", "ai", "ml", "llm", "llms", "nlp", "sql", "aws", "gpt", "api", "cfa", "frm", "etf", "dcf", "esg", "ui", "ux", "r", "2024", "2025", "2026"]);
   function parseLink(raw) {
     let u; try { u = new URL(raw.trim()); } catch { return null; }
     const host = u.hostname.replace(/^www\./, "");
@@ -646,12 +773,30 @@
     "corporate finance": ["tvm", "npv", "dcf"], "investing": ["stocks", "diversification", "risk-return"], "stock": ["stocks"],
     "portfolio": ["diversification", "sharpe"], "options": ["derivatives"], "derivatives": ["derivatives"], "bond": ["bonds"],
     "risk": ["risk-return", "volatility"], "fraud": ["fraud-detection"], "credit": ["credit-scoring"], "fintech": ["robo-advisor"],
-    "time series": ["time-series"], "forecast": ["time-series"]
+    "time series": ["time-series"], "forecast": ["time-series"],
+    "agentic": ["agents", "agent-patterns"], "mcp": ["mcp"], "model context protocol": ["mcp"],
+    "tool use": ["tool-use"], "tool calling": ["tool-use"], "function calling": ["tool-use"], "tools": ["tool-use"],
+    "react agent": ["agent-patterns"], "react pattern": ["agent-patterns"], "reason and act": ["agent-patterns"], "reflection": ["agent-patterns"], "planning": ["agent-patterns"], "human-in-the-loop": ["agent-patterns"],
+    "orchestrat": ["orchestration"], "workflow": ["orchestration"], "langgraph": ["orchestration", "agents"], "prompt chaining": ["orchestration"],
+    "multi-agent": ["multi-agent"], "multi agent": ["multi-agent"], "crewai": ["multi-agent"], "autogen": ["multi-agent"],
+    "context engineering": ["context-eng"], "context window": ["context-eng"], "memory": ["context-eng"],
+    "vector": ["vector-db"], "pinecone": ["vector-db"], "chroma": ["vector-db"], "pgvector": ["vector-db"], "faiss": ["vector-db"],
+    "retrieval": ["rag"], "eval": ["evals"], "llm-as-a-judge": ["evals"], "llm as a judge": ["evals"],
+    "guardrail": ["guardrails"], "safety": ["guardrails"], "prompt injection": ["guardrails"],
+    "observability": ["llmops"], "monitoring": ["llmops"], "tracing": ["llmops"], "llmops": ["llmops"], "deploy": ["llmops"],
+    "architect": ["ai-architecture"], "system design": ["ai-architecture"], "forward deployed": ["fde"], "fde": ["fde"],
+    "customer discovery": ["fde"], "stakeholder": ["fde"], "fine-tun": ["fine-tuning"], "embedding": ["embedding"]
   };
+  const escapeRe = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const KEYWORD_RES = Object.entries(KEYWORDS).map(([k, ids]) => [new RegExp("\\b" + escapeRe(k), "i"), ids]);
   function suggestConcepts(text) {
     const t = text.toLowerCase(), out = new Set();
-    for (const [k, ids] of Object.entries(KEYWORDS)) if (t.includes(k)) ids.forEach((id) => out.add(id));
-    D.concepts.forEach((c) => { const l = c.label.toLowerCase().replace(/\s*\(.*\)/, ""); if (l.length > 3 && t.includes(l)) out.add(c.id); });
+    for (const [re, ids] of KEYWORD_RES) if (re.test(t)) ids.forEach((id) => conceptById[id] && out.add(id));
+    D.concepts.forEach((c) => {
+      const l = c.label.toLowerCase().replace(/\s*\(.*\)/, "");
+      const abbr = (c.label.match(/\(([^)]+)\)/) || [])[1];
+      if ((l.length > 3 && t.includes(l)) || (abbr && new RegExp("\\b" + escapeRe(abbr.toLowerCase()) + "\\b").test(t))) out.add(c.id);
+    });
     return out;
   }
   function guessDomain(ids) {
@@ -695,9 +840,122 @@
       });
   }
 
+  // ── Sync from curriculum: match pasted section/lecture titles to the map, offer to add what's missing
+  const SKIP_LINE = /^(introduction|intro|welcome.*|about (this|the) (course|instructor)|conclusion|summary|recap|wrap[- ]?up|course (overview|introduction|summary|intro)|resources?|bonus.*|q ?& ?a|final (words|thoughts)|thank you.*|next steps|quiz.*|assignment.*|practice test.*|downloads?.*|course materials?|congratulations.*|preview|start)$/i;
+  function cleanLine(l) {
+    return l
+      .replace(/^\s*(section|module|week|chapter|part|lecture|lesson|unit|day)\s*\d+\s*[:.\-–—]?\s*/i, "")
+      .replace(/^\s*\d+(\.\d+)*[.)]?\s+/, "")
+      .replace(/\b\d{1,2}:\d{2}(:\d{2})?\b/g, "")
+      .replace(/\b\d+\s*\/\s*\d+\b/g, "")
+      .replace(/\b\d+\s*(min|mins|hr|hrs|hour|hours|lectures?|sec)\b/gi, "")
+      .replace(/\b(preview|play)\b/gi, "")
+      .replace(/[|•·]+/g, " ")
+      .replace(/\s{2,}/g, " ").replace(/^[\s:–—-]+|[\s:–—-]+$/g, "").trim();
+  }
+  const keepLine = (l) => l.length >= 4 && /[a-z]/i.test(l) && !SKIP_LINE.test(l);
+
+  function checkCoverage() {
+    const lines = f.curriculum.value.split(/\n+/).map(cleanLine).filter(keepLine);
+    const matched = new Set(), missing = [], seen = new Set();
+    lines.forEach((l) => {
+      const ids = suggestConcepts(l);
+      if (ids.size) ids.forEach((i) => matched.add(i));
+      else if (!seen.has(l.toLowerCase())) { seen.add(l.toLowerCase()); missing.push(l); }
+    });
+    if (!lines.length) { f.coverage.textContent = ""; f.coverage.append(h("p", { class: "empty", text: "Paste the curriculum first: one section or lecture title per line." })); return; }
+    matched.forEach((id) => formConcepts.add(id));
+    if (matched.size) { conceptsTouched = true; const d = guessDomain(matched); if (d && !editingId) f.domain.value = d; }
+    renderConceptPicker();
+    renderAddNodes(matched, missing);
+  }
+
+  // UI for adding missing nodes: pick (or create) a domain and topic, edit/tick the concept names
+  function renderAddNodes(matched, missing, manual = false) {
+    const box = f.coverage; box.textContent = "";
+    const courseName = f.title.value.trim() || "this course";
+    if (!manual) {
+      box.append(h("p", { class: "cov-ok", text: `✓ ${matched.size} concept${matched.size === 1 ? "" : "s"} already on your map ${matched.size === 1 ? "was" : "were"} ticked above.` }));
+      if (!missing.length) { box.append(h("p", { class: "empty", text: "Nothing missing. Your map covers this course." })); return; }
+      box.append(h("p", { class: "cov-miss", text: `${missing.length} line${missing.length === 1 ? " isn't" : "s aren't"} on your map yet. Untick anything that isn't a real skill (like “Project setup”), rename if needed, then add them:` }));
+    }
+    // target domain / topic
+    const topicCount = {};
+    matched.forEach((id) => { const c = conceptById[id]; if (c.topic) topicCount[c.topic] = (topicCount[c.topic] || 0) + 1; });
+    const bestTopic = Object.entries(topicCount).sort((a, b) => b[1] - a[1])[0]?.[0];
+    const domSel = h("select", { "aria-label": "Domain for new concepts" });
+    D.domains.forEach((d) => domSel.append(h("option", { value: d.id, text: d.name })));
+    domSel.append(h("option", { value: "__new", text: "➕ New domain…" }));
+    domSel.value = bestTopic ? topicById[bestTopic].domain : f.domain.value;
+    const domNew = h("input", { type: "text", placeholder: "New domain name, e.g. Product Management", hidden: true });
+    const topSel = h("select", { "aria-label": "Topic for new concepts" });
+    const topNew = h("input", { type: "text", placeholder: "New topic name", hidden: true });
+    function fillTopics() {
+      topSel.textContent = "";
+      D.topics.filter((t) => t.domain === domSel.value).forEach((t) => topSel.append(h("option", { value: t.id, text: t.name })));
+      topSel.append(h("option", { value: "__new", text: "➕ New topic…" }));
+      if (bestTopic && topicById[bestTopic]?.domain === domSel.value) topSel.value = bestTopic;
+      else topSel.value = "__new";
+      domNew.hidden = domSel.value !== "__new";
+      topNew.hidden = topSel.value !== "__new";
+      if (!topNew.value) topNew.value = courseName.length > 40 ? courseName.slice(0, 40).replace(/\s+\S*$/, "") : courseName;
+    }
+    domSel.addEventListener("change", fillTopics);
+    topSel.addEventListener("change", () => (topNew.hidden = topSel.value !== "__new"));
+    fillTopics();
+
+    const rows = h("div", { class: "cov-rows" });
+    const addRow = (text) => {
+      const cb = h("input", { type: "checkbox", checked: true, "aria-label": "Include" });
+      const inp = h("input", { type: "text", value: text, placeholder: "Concept name" });
+      rows.append(h("label", { class: "cov-row" }, cb, inp));
+    };
+    missing.forEach(addRow);
+    const msg = h("p", { class: "cov-ok" });
+    box.append(
+      h("div", { class: "row cov-target" },
+        h("label", null, "Domain", domSel, domNew),
+        h("label", null, "Topic", topSel, topNew)),
+      rows,
+      h("div", { class: "row" },
+        h("button", { type: "button", class: "btn small", text: "+ Another concept", onclick: () => addRow("") }),
+        h("button", { type: "button", class: "btn small primary", text: "Add to my map", onclick: () => {
+          const picked = [...rows.querySelectorAll(".cov-row")]
+            .filter((r) => r.querySelector("input[type=checkbox]").checked)
+            .map((r) => r.querySelector("input[type=text]").value.trim()).filter(Boolean);
+          if (!picked.length) { msg.textContent = "Tick or type at least one concept."; return; }
+          let domId = domSel.value, topId = topSel.value;
+          if (domId === "__new") {
+            const name = domNew.value.trim(); if (!name) { msg.textContent = "Give the new domain a name."; domNew.focus(); return; }
+            domId = D.domains.find((d) => d.name.toLowerCase() === name.toLowerCase())?.id || addDomain(name, courseName);
+          }
+          if (topId === "__new") {
+            const name = topNew.value.trim(); if (!name) { msg.textContent = "Give the new topic a name."; topNew.focus(); return; }
+            topId = D.topics.find((t) => t.domain === domId && t.name.toLowerCase() === name.toLowerCase())?.id || addTopic(name, domId, courseName);
+          }
+          const ids = picked.map((label) => addConcept(label, topId, courseName));
+          ids.forEach((id) => formConcepts.add(id));
+          conceptsTouched = true;
+          if (!matched.size || f.domain.value === "") f.domain.value = domId;
+          afterCustomChange();
+          f.domain.value = domId;
+          renderConceptPicker();
+          box.textContent = "";
+          box.append(h("p", { class: "cov-ok", text: `★ Added ${ids.length} concept${ids.length === 1 ? "" : "s"} to ${topicById[topId].name} (${domainById[domId].name}) and ticked them for this course. Save the course to link them; they light up on the graph when you mark it Completed.` }));
+        } })),
+      msg);
+  }
+  $("f-check").addEventListener("click", checkCoverage);
+  $("f-add-concept").addEventListener("click", () => {
+    $("curriculum").open = true;
+    renderAddNodes(new Set(), [""], true);
+    f.coverage.querySelector(".cov-row input[type=text]")?.focus();
+  });
+
   function resetForm() {
     form.reset(); delete f.provider.dataset.auto;
     formConcepts = new Set(); conceptsTouched = false; autoTitle = ""; editingId = null;
+    f.coverage.textContent = "";
     $("form-title").textContent = "Add a course to your learning path";
     $("f-submit").textContent = "Add to my path";
     $("f-cancel").hidden = true;
@@ -708,6 +966,7 @@
     editingId = id; conceptsTouched = true;
     f.url.value = e.url; f.title.value = e.title; f.provider.value = e.provider || ""; f.domain.value = e.domain;
     f.status.value = e.status; f.start.value = e.start || ""; f.end.value = e.end || ""; f.notes.value = e.notes || "";
+    f.curriculum.value = e.curriculum || ""; f.coverage.textContent = "";
     formConcepts = new Set(e.concepts || []);
     $("form-title").textContent = "Edit course";
     $("f-submit").textContent = "Save changes";
@@ -723,7 +982,7 @@
       id: editingId || Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       url: f.url.value.trim(), title: f.title.value.trim(), provider: f.provider.value.trim(),
       domain: f.domain.value, status: f.status.value, start: f.start.value, end: f.end.value,
-      concepts: [...formConcepts], notes: f.notes.value.trim(),
+      concepts: [...formConcepts].filter((id) => conceptById[id]), notes: f.notes.value.trim(), curriculum: f.curriculum.value.trim(),
       added: editingId ? (log.find((x) => x.id === editingId)?.added || today()) : today()
     };
     if (entry.status === "completed" && !entry.end) entry.end = today();
@@ -768,7 +1027,7 @@
   $("log-filter").addEventListener("change", renderLog);
 
   $("export").addEventListener("click", () => {
-    const blob = new Blob([JSON.stringify({ version: 1, exported: today(), log, courseStatus, learned: [...manualLearned] }, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify({ version: 2, exported: today(), log, courseStatus, learned: [...manualLearned], custom }, null, 2)], { type: "application/json" });
     const a = h("a", { href: URL.createObjectURL(blob), download: `learning-path-${today()}.json` });
     document.body.append(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
@@ -783,7 +1042,12 @@
       log = [...incoming.filter((x) => x && x.id && x.url && x.title), ...log.filter((x) => !ids.has(x.id))];
       if (data.courseStatus) courseStatus = { ...courseStatus, ...data.courseStatus };
       if (Array.isArray(data.learned)) data.learned.forEach((id) => manualLearned.add(id));
-      save(); rebuild();
+      if (data.custom) {
+        arr(data.custom.domains).forEach((d) => registerDomain(d) && custom.domains.push(d));
+        arr(data.custom.topics).forEach((t) => registerTopic(t) && custom.topics.push(t));
+        arr(data.custom.concepts).forEach((c) => registerConcept(c) && custom.concepts.push(c));
+      }
+      afterCustomChange();
       alert(`Imported ${incoming.length} course(s).`);
     } catch (err) {
       alert("Couldn't import that file: " + err.message);
