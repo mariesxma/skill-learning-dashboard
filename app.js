@@ -297,9 +297,10 @@
 
   // ───────────────────────── pan / zoom / drag ─────────────────────────
   const view = { x: 0, y: 0, k: 1 };
-  const applyView = () => viewport.setAttribute("transform", `translate(${view.x},${view.y}) scale(${view.k})`);
+  const applyView = () => { viewport.setAttribute("transform", `translate(${view.x},${view.y}) scale(${view.k})`); updateZoomButtons(); };
   const toWorld = (sx, sy) => ({ x: (sx - view.x) / view.k, y: (sy - view.y) / view.k });
-  const clampK = (k) => Math.min(4, Math.max(0.2, k));
+  const MIN_K = 0.08, MAX_K = 4;
+  const clampK = (k) => Math.min(MAX_K, Math.max(MIN_K, k));
 
   function zoomAt(sx, sy, k2) {
     k2 = clampK(k2);
@@ -307,6 +308,11 @@
     view.y = sy - (sy - view.y) * (k2 / view.k);
     view.k = k2; applyView();
   }
+  const updateZoomButtons = () => {
+    const zi = $("zoom-in"), zo = $("zoom-out");
+    if (zi) zi.disabled = view.k >= MAX_K - 1e-6;
+    if (zo) zo.disabled = view.k <= MIN_K + 1e-6;
+  };
 
   function fit() {
     const r = svg.getBoundingClientRect();
@@ -368,9 +374,20 @@
   svg.addEventListener("gestureend", (e) => e.preventDefault());
 
   // zoom buttons and keyboard shortcuts (+ / − / 0)
+  // animated zoom around the centre so each button press is clearly visible
+  let zoomAnim = 0, zoomTarget = null;
   function zoomCenter(factor) {
     const r = svg.getBoundingClientRect();
-    zoomAt(r.width / 2, r.height / 2, view.k * factor);
+    const cx = r.width / 2, cy = r.height / 2;
+    zoomTarget = clampK((zoomTarget ?? view.k) * factor);
+    const from = view.k, to = zoomTarget, t0 = performance.now();
+    cancelAnimationFrame(zoomAnim);
+    const step = (t) => {
+      const p = Math.min(1, (t - t0) / 180), e = 1 - Math.pow(1 - p, 3);
+      zoomAt(cx, cy, from * Math.pow(to / from, e));
+      if (p < 1) zoomAnim = requestAnimationFrame(step); else zoomTarget = null;
+    };
+    zoomAnim = requestAnimationFrame(step);
   }
   $("zoom-in").addEventListener("click", () => zoomCenter(1.25));
   $("zoom-out").addEventListener("click", () => zoomCenter(0.8));
