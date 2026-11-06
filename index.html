@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Skill Map</title>
-  <link rel="stylesheet" href="styles.css?v=6" />
+  <link rel="stylesheet" href="styles.css?v=7" />
 </head>
 <body>
   <header class="topbar">
@@ -44,7 +44,9 @@
         <span><i class="lg lg-domain"></i>Domain</span>
         <span><i class="lg lg-topic"></i>Topic</span>
         <span><i class="lg lg-concept"></i>Concept</span>
-        <span><i class="lg lg-learned"></i>Skill gained</span>
+        <span><i class="lg lg-l1"></i>Aware</span>
+        <span><i class="lg lg-l2"></i>Understand</span>
+        <span><i class="lg lg-l3"></i>Apply</span>
         <span><i class="lg lg-course"></i>Course</span>
         <span><i class="lg lg-related"></i>Related</span>
       </div>
@@ -60,7 +62,7 @@
   <main id="view-log" class="view">
     <section class="log-wrap">
       <form id="log-form" class="card log-form">
-        <h2 id="form-title">Add a course to your learning path</h2>
+        <h2 id="form-title">Add a course or project to your learning path</h2>
         <div class="row">
           <label class="grow">Course link
             <input id="f-url" type="url" required placeholder="https://www.udemy.com/course/…" />
@@ -78,6 +80,12 @@
         <div class="row">
           <label>Domain
             <select id="f-domain"></select>
+          </label>
+          <label>Type
+            <select id="f-kind" title="Completed projects lift their concepts to Apply; courses to Understand">
+              <option value="course">Course</option>
+              <option value="project">Project (something I built)</option>
+            </select>
           </label>
           <label>Status
             <select id="f-status">
@@ -135,7 +143,7 @@
     </section>
   </main>
 
-  <script src="data.js?v=6"></script>
-  <script src="app.js?v=6"></script>
+  <script src="data.js?v=7"></script>
+  <script src="app.js?v=7"></script>
 </body>
 </html>

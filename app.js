@@ -5,7 +5,7 @@
   const SVGNS = "http://www.w3.org/2000/svg";
 
   // ───────────────────────── storage (per browser) ─────────────────────────
-  const KEYS = { status: "skillmap.courseStatus", learned: "skillmap.learned", log: "skillmap.log", custom: "skillmap.custom" };
+  const KEYS = { status: "skillmap.courseStatus", learned: "skillmap.learned", log: "skillmap.log", custom: "skillmap.custom", levels: "skillmap.levels", focus: "skillmap.focus" };
   const store = {
     get(k, fallback) {
       try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
@@ -14,13 +14,18 @@
   };
   let courseStatus = store.get(KEYS.status, {});          // curated course id → status
   let manualLearned = new Set(store.get(KEYS.learned, [])); // concept ids marked learned by hand
-  let log = store.get(KEYS.log, []);                        // user's own courses
+  let log = store.get(KEYS.log, []);                        // user's own courses and projects
+  let levels = store.get(KEYS.levels, {}) || {};            // concept id → 1 Aware … 4 Master (set by you)
+  manualLearned.forEach((id) => { if (!levels[id]) levels[id] = 2; }); // older "mark as learned" = Understand
+  let focus = store.get(KEYS.focus, "t:ai-agentic");         // depth track: "t:<topic>" or "d:<domain>"
   if (!Array.isArray(log)) log = [];
   const save = () => {
     store.set(KEYS.status, courseStatus);
     store.set(KEYS.learned, [...manualLearned]);
     store.set(KEYS.log, log);
     store.set(KEYS.custom, custom);
+    store.set(KEYS.levels, levels);
+    store.set(KEYS.focus, focus);
   };
 
   // ───────────────────────── lookups ─────────────────────────
@@ -109,7 +114,7 @@
       custom.topics = custom.topics.filter((t) => t.id !== id);
     }
     D.concepts = D.concepts.filter((c) => !conceptIds.includes(c.id));
-    conceptIds.forEach((c) => { delete conceptById[c]; manualLearned.delete(c); });
+    conceptIds.forEach((c) => { delete conceptById[c]; manualLearned.delete(c); delete levels[c]; });
     custom.concepts = custom.concepts.filter((c) => !conceptIds.includes(c.id));
     log.forEach((e) => { e.concepts = (e.concepts || []).filter((c) => !conceptIds.includes(c)); });
     afterCustomChange();
@@ -142,7 +147,7 @@
     });
     const mine = log.map((e) => ({
       id: "log:" + e.id, logId: e.id, title: e.title, provider: e.provider, url: e.url, cost: "", level: "",
-      covers: (e.concepts || []).filter((id) => conceptById[id]), mine: true, status: e.status, domain: e.domain, notes: e.notes
+      covers: (e.concepts || []).filter((id) => conceptById[id]), mine: true, kind: e.kind || "course", status: e.status, domain: e.domain, notes: e.notes
     }));
     return [...mine, ...curated];
   }
@@ -171,12 +176,37 @@
     else if (finished === 0 && courseStatus[c.id] === "in-progress") delete courseStatus[c.id];
     save(); refreshAll();
   }
-  const isLearned = (conceptId) => manualLearned.has(conceptId) || learnedVia(conceptId).length > 0;
+  // ── Depth levels: courses lift a concept to Understand, your own projects to Apply.
+  const LEVEL_NAMES = ["Not started", "Aware", "Understand", "Apply", "Master"];
+  const LEVEL_HELP = [
+    "Not touched yet.",
+    "You can say what it is in one sentence and when it's used. Time-box: about 1 hour (a video or an article), then move on.",
+    "You can explain how it works and its trade-offs. Time-box: 3–5 hours, usually one course module.",
+    "You've used it in something you built yourself. This comes from projects, not courses.",
+    "You could teach it, or debug hard problems with it without looking things up."
+  ];
+  const NEXT_STEP = [
+    "Get to Aware: spend about an hour on a video or article, then move on.",
+    "Get to Understand: take one course module on it (see the courses below).",
+    "Get to Apply: use it in a small project, then log the project in My learning log with Type = Project.",
+    "Get to Master: teach it, write about it, or use it in a harder project.",
+    ""
+  ];
+  const LEVEL_FILL = [0, 0.22, 0.5, 1, 1];
+  function derivedLevel(conceptId) {
+    const via = learnedVia(conceptId);
+    if (!via.length) return 0;
+    return via.some((v) => v.mine && v.kind === "project") ? 3 : 2;
+  }
+  const levelOf = (conceptId) => Math.max(levels[conceptId] || 0, derivedLevel(conceptId));
+  const isLearned = (conceptId) => levelOf(conceptId) >= 2;
 
   function domainProgress(domainId) {
     const cs = D.concepts.filter((c) => conceptDomain(c) === domainId);
-    const done = cs.filter((c) => isLearned(c.id)).length;
-    return { done, total: cs.length, frac: cs.length ? done / cs.length : 0 };
+    const lv = cs.map((c) => levelOf(c.id)), n = cs.length || 1;
+    const done = lv.filter((l) => l >= 2).length;
+    return { done, total: cs.length, frac: done / n,
+      breadth: lv.filter((l) => l >= 1).length / n, depth: lv.filter((l) => l >= 3).length / n };
   }
 
   function setCourseStatus(course, status) {
@@ -363,23 +393,31 @@
     const g = n.el; g.textContent = "";
     const color = domainById[n.domain].color;
     if (n.type === "domain") {
-      const p = domainProgress(n.domain), R = n.r + 7, C = 2 * Math.PI * R;
-      g.append(s("circle", { r: R, fill: "none", stroke: "var(--border)", "stroke-width": 5 }));
-      g.append(s("circle", { r: R, fill: "none", stroke: color, "stroke-width": 5, "stroke-linecap": "round",
-        "stroke-dasharray": `${p.frac * C} ${C}`, transform: "rotate(-90)" }));
+      // inner ring = breadth (≥ Aware), outer ring = depth (≥ Apply)
+      const p = domainProgress(n.domain);
+      const ring = (R, frac, opacity) => {
+        const C = 2 * Math.PI * R;
+        g.append(s("circle", { r: R, fill: "none", stroke: "var(--border)", "stroke-width": 5 }));
+        g.append(s("circle", { r: R, fill: "none", stroke: color, "stroke-opacity": opacity, "stroke-width": 5, "stroke-linecap": "round",
+          "stroke-dasharray": `${frac * C} ${C}`, transform: "rotate(-90)" }));
+      };
+      ring(n.r + 7, p.breadth, 0.45); ring(n.r + 14, p.depth, 1);
       g.append(s("circle", { class: "shape", r: n.r, fill: color, stroke: color, "stroke-width": 2 }));
       const pct = s("text", { "text-anchor": "middle", dy: 5, style: "fill:#fff;stroke:none;font-size:13px;font-weight:700" });
-      pct.textContent = Math.round(p.frac * 100) + "%";
+      pct.textContent = Math.round(p.breadth * 100) + "%";
       g.append(pct);
-      g.append(label((n.ref.custom ? "★ " : "") + n.label, { "text-anchor": "middle", y: R + 20 }));
+      g.append(label((n.ref.custom ? "★ " : "") + n.label, { "text-anchor": "middle", y: n.r + 34 }));
+      g.append(label(`${Math.round(p.breadth * 100)}% wide · ${Math.round(p.depth * 100)}% deep`, { "text-anchor": "middle", y: n.r + 50, class: "sub" }));
     } else if (n.type === "topic") {
       g.append(s("circle", { class: "shape", r: n.r, style: "fill:var(--surface)", stroke: color, "stroke-width": 3, "stroke-dasharray": n.ref.custom ? "4 3" : null }));
       g.append(label(n.label, { "text-anchor": "middle", y: n.r + 16 }));
     } else if (n.type === "concept") {
-      const learned = isLearned(n.ref.id);
-      if (learned) g.append(s("circle", { r: n.r + 6, fill: color, "fill-opacity": 0.22 }));
-      g.append(s("circle", { class: "shape", r: n.r, stroke: color, "stroke-width": 2.2, "stroke-dasharray": n.ref.custom && !learned ? "3 2" : null,
-        style: learned ? `fill:${color}` : "fill:var(--surface)" }));
+      const lv = levelOf(n.ref.id);
+      if (lv >= 3) g.append(s("circle", { r: n.r + 6, fill: color, "fill-opacity": 0.22 }));
+      if (lv === 4) g.append(s("circle", { r: n.r + 9, fill: "none", stroke: color, "stroke-width": 1.5 }));
+      g.append(s("circle", { r: n.r, style: "fill:var(--surface)" }));
+      g.append(s("circle", { class: "shape", r: n.r, stroke: color, "stroke-width": 2.2, "stroke-dasharray": n.ref.custom && lv < 3 ? "3 2" : null,
+        fill: color, "fill-opacity": LEVEL_FILL[lv] }));
       g.append(label(n.label, { x: n.r + 5, y: 4 }));
     } else {
       const done = n.ref.status === "completed";
@@ -580,8 +618,10 @@
   function conceptChip(id) {
     const c = conceptById[id]; if (!c) return null;
     const color = domainById[conceptDomain(c)].color;
-    return h("button", { class: "chip" + (isLearned(id) ? " learned" : ""), onclick: () => goToConcept(id), title: c.definition },
-      h("span", { class: "dot", style: `background:${color}` }), c.label);
+    const lv = levelOf(id);
+    return h("button", { class: "chip", onclick: () => goToConcept(id), title: (lv ? LEVEL_NAMES[lv] + " · " : "") + c.definition },
+      h("span", { class: "dot", style: `background:${color};opacity:${lv ? 1 : 0.35}` }), c.label,
+      lv ? h("span", { class: "lv", style: `--c:${color}`, text: "L" + lv }) : null);
   }
   function domainChip(id) {
     const d = domainById[id];
@@ -636,7 +676,7 @@
       const topics = D.topics.filter((t) => t.domain === d.id);
       const direct = D.concepts.filter((c) => c.domain === d.id);
       panelBody.append(head, h("h3", { text: d.name }), h("p", { class: "def", text: d.summary }),
-        progressBar(domainProgress(d.id), d.color),
+        (() => { const p = domainProgress(d.id); return h("p", { class: "meta", text: `${Math.round(p.breadth * 100)}% wide (Aware+) · ${Math.round(p.depth * 100)}% deep (Apply+) · ${p.total} concepts` }); })(),
         ...topics.map((t) => section(t.name, ...D.concepts.filter((c) => c.topic === t.id).map((c) => conceptChip(c.id)))),
         direct.length ? section("Concepts", ...direct.map((c) => conceptChip(c.id))) : null,
         section("Learning path: best courses", ...courses.map(courseCard)));
@@ -647,18 +687,13 @@
         section("Terminology", ...cs.map((c) => conceptChip(c.id))),
         section("Courses for this topic", ...courses.map(courseCard)));
     } else if (n.type === "concept") {
-      const c = n.ref, via = learnedVia(c.id), learned = isLearned(c.id);
+      const c = n.ref;
       const rel = [...neighbors[n.id]].filter((id) => id.startsWith("c:") && id !== n.id).map((id) => id.slice(2));
       const courses = sortCourses(allCourses().filter((k) => k.covers.includes(c.id)));
       panelBody.append(head, h("h3", { text: c.label }),
         h("div", null, domainChip(conceptDomain(c)), c.topic ? h("span", { class: "chip", style: "cursor:default", text: topicById[c.topic].name }) : null),
         h("p", { class: "def", text: c.definition || "No definition yet. Add one under “Your addition” below." }),
-        h("div", { style: "display:flex;gap:8px;align-items:center;flex-wrap:wrap" },
-          h("span", { class: "badge" + (learned ? " ok" : ""), text: learned ? "✓ Skill gained" : "Not learned yet" }),
-          via.length ? null : h("button", { class: "btn small", onclick: () => {
-            manualLearned.has(c.id) ? manualLearned.delete(c.id) : manualLearned.add(c.id); save(); refreshAll();
-          }, text: manualLearned.has(c.id) ? "Unmark" : "Mark as learned" })),
-        via.length ? h("p", { class: "meta", style: "color:var(--muted);font-size:12px", text: "Learned through: " + via.map((v) => v.title).join(", ") }) : null,
+        levelPicker(c, color),
         rel.length ? section("Connected concepts", ...rel.map(conceptChip)) : null,
         section("Best courses for this", ...(courses.length ? courses.map(courseCard) : [h("p", { class: "empty", text: "No course yet. Add one in My learning log." })])));
     } else {
@@ -674,6 +709,24 @@
         c.mine ? h("button", { class: "btn small", onclick: () => { switchView("log"); startEdit(c.logId); }, text: "Edit in learning log" }) : null);
     }
     if (n.ref.custom) panelBody.append(customControls(n));
+  }
+
+  function levelPicker(c, color) {
+    const lv = levelOf(c.id), derived = derivedLevel(c.id), via = learnedVia(c.id);
+    const box = h("section", { class: "level-box" }, h("h4", { text: "Your level" }));
+    const row = h("div", { class: "levels", role: "group", "aria-label": "Your level for " + c.label });
+    LEVEL_NAMES.forEach((name, i) => {
+      const locked = i < derived;
+      row.append(h("button", {
+        class: "lvl" + (i === lv ? " on" : "") + (i > 0 && i <= lv ? " filled" : ""), style: `--c:${color}`,
+        "aria-pressed": i === lv, disabled: locked || null, title: locked ? `Already ${LEVEL_NAMES[derived]} from your courses/projects` : LEVEL_HELP[i],
+        onclick: () => { if (i === 0) delete levels[c.id]; else levels[c.id] = i; save(); refreshAll(); }
+      }, i === 0 ? "–" : h("span", null, h("b", { text: String(i) }), " " + name)));
+    });
+    box.append(row, h("p", { class: "lvl-help", text: LEVEL_HELP[lv] }));
+    if (derived) box.append(h("p", { class: "meta lvl-via", text: `${LEVEL_NAMES[derived]} from: ` + via.map((v) => v.title).join(", ") }));
+    if (NEXT_STEP[lv]) box.append(h("p", { class: "lvl-next", text: "Next: " + NEXT_STEP[lv] }));
+    return box;
   }
 
   function customControls(n) {
@@ -699,30 +752,93 @@
     return box;
   }
 
+  // ── "Next up": go deeper in your focus track, wider everywhere else
+  let shuffleSeed = 0;
+  const hashStr = (t) => { let x = 2166136261; for (const ch of t) x = Math.imul(x ^ ch.charCodeAt(0), 16777619); return (x >>> 0) / 4294967295; };
+  function inFocus(c) {
+    if (!focus) return false;
+    const [k, id] = focus.split(":");
+    return k === "t" ? c.topic === id : conceptDomain(c) === id;
+  }
+  function nextUp() {
+    const rnd = (id) => hashStr(id + ":" + shuffleSeed);
+    const deepen = D.concepts.filter((c) => inFocus(c) && levelOf(c.id) < 3)
+      .sort((a, b) => (levelOf(b.id) - levelOf(a.id)) || (rnd(a.id) - rnd(b.id))).slice(0, 2);
+    const known = (id) => levelOf(id) >= 1;
+    const frontier = (c) => [...(neighbors["c:" + c.id] || [])].filter((nid) => nid.startsWith("c:") && known(nid.slice(2))).length;
+    const pool = D.concepts.filter((c) => !inFocus(c) && levelOf(c.id) === 0)
+      .sort((a, b) => (Math.min(frontier(b), 2) - Math.min(frontier(a), 2)) || (rnd(a.id) - rnd(b.id)));
+    const broaden = [];
+    for (const c of pool) {
+      if (broaden.length === 2) break;
+      if (!broaden.some((x) => conceptDomain(x) === conceptDomain(c))) broaden.push(c);
+    }
+    return { deepen, broaden };
+  }
+  function suggestionCard(c, kind) {
+    const lv = levelOf(c.id), color = domainById[conceptDomain(c)].color;
+    const course = sortCourses(allCourses().filter((k) => k.covers.includes(c.id) && k.status !== "completed"))[0];
+    return h("div", { class: "suggest" },
+      h("div", { class: "suggest-top" }, h("span", { class: "suggest-kind " + kind, text: kind === "deepen" ? "Go deeper" : "Go wider" }), conceptChip(c.id)),
+      h("p", { class: "meta", text: kind === "deepen" ? NEXT_STEP[lv] : NEXT_STEP[0] }),
+      course && (kind === "deepen" ? lv >= 1 : true) && lv < 2
+        ? h("a", { class: "suggest-link", href: safeUrl(course.url), target: "_blank", rel: "noopener noreferrer", text: course.title + " ↗" }) : null);
+  }
+  function focusSelect() {
+    const sel = h("select", { "aria-label": "Focus track", onchange: (e) => { focus = e.target.value; save(); refreshAll(); } });
+    D.domains.forEach((d) => {
+      const g = h("optgroup", { label: d.name });
+      g.append(h("option", { value: "d:" + d.id, text: `All of ${d.name}` }));
+      D.topics.filter((t) => t.domain === d.id).forEach((t) => g.append(h("option", { value: "t:" + t.id, text: t.name })));
+      sel.append(g);
+    });
+    sel.value = focus;
+    return sel;
+  }
   function renderIntro() {
-    const learned = D.concepts.filter((c) => isLearned(c.id));
     const active = allCourses().filter((c) => c.status === "in-progress");
+    const { deepen, broaden } = nextUp();
+    const byLevel = [4, 3, 2, 1].map((l) => [l, D.concepts.filter((c) => levelOf(c.id) === l)]);
+    const bar = (frac, color, opacity, text) => h("div", { class: "bd-row" },
+      h("span", { class: "bd-label", text }),
+      h("div", { class: "progress" }, h("div", { style: `width:${frac * 100}%;background:${color};opacity:${opacity}` })),
+      h("span", { class: "bd-pct", text: Math.round(frac * 100) + "%" }));
     return h("div", { class: "panel-intro" },
       h("h3", { text: "Your skill map" }),
-      h("p", { text: "CS Foundations at the top is the base; AI and Finance build on it, and AI × Finance is where they meet. Click any node. Mark courses Completed and their concepts light up as skills gained." }),
-      ...D.domains.map((d) => h("section", null,
-        h("h4", { style: `color:${d.color}`, text: d.name }), progressBar(domainProgress(d.id), d.color))),
-      section(`Skills gained (${learned.length})`,
-        ...(learned.length ? learned.map((c) => conceptChip(c.id)) : [h("p", { class: "empty", text: "None yet. Pick a concept and start a course." })])),
-      active.length ? section("In progress", ...active.map(courseCard)) : null);
+      h("p", { text: "Aim for T-shaped skills: wide across the map (Aware of many concepts) and deep in one or two focus areas (able to Apply them). Courses lift concepts to Understand; your own projects lift them to Apply." }),
+      section("Focus track (where to go deep)", focusSelect()),
+      section("Next up",
+        ...deepen.map((c) => suggestionCard(c, "deepen")),
+        ...broaden.map((c) => suggestionCard(c, "broaden")),
+        !deepen.length && !broaden.length ? h("p", { class: "empty", text: "Nothing to suggest. Pick a different focus track." }) : null,
+        h("button", { class: "btn small", text: "↻ Other suggestions", onclick: () => { shuffleSeed++; renderPanel(); } })),
+      section("Breadth & depth",
+        ...D.domains.map((d) => { const p = domainProgress(d.id); return h("div", { class: "bd" },
+          h("div", { class: "bd-name", style: `color:${d.color}`, text: d.name }),
+          bar(p.breadth, d.color, 0.45, "Wide"), bar(p.depth, d.color, 1, "Deep")); })),
+      section("Skills by level",
+        ...byLevel.map(([l, cs]) => h("div", { class: "by-level" },
+          h("div", { class: "by-level-head" }, h("b", { text: `L${l} ${LEVEL_NAMES[l]}` }), h("span", { class: "meta", text: ` · ${cs.length}` })),
+          cs.length ? h("div", null, ...cs.map((c) => conceptChip(c.id))) : null))),
+      active.length ? section("In progress", ...active.map((c) => courseCard(c))) : null);
   }
 
   // ───────────────────────── header stats ─────────────────────────
   function renderStats() {
     const box = $("stats"); box.textContent = "";
     D.domains.forEach((d) => {
-      const p = domainProgress(d.id), R = 9, C = 2 * Math.PI * R;
-      const ring = s("svg", { width: 24, height: 24, viewBox: "0 0 24 24", "aria-hidden": "true" });
-      ring.append(s("circle", { cx: 12, cy: 12, r: R, fill: "none", stroke: "var(--border)", "stroke-width": 4 }));
-      ring.append(s("circle", { cx: 12, cy: 12, r: R, fill: "none", stroke: d.color, "stroke-width": 4,
-        "stroke-dasharray": `${p.frac * C} ${C}`, transform: "rotate(-90 12 12)", "stroke-linecap": "round" }));
-      box.append(h("button", { class: "stat", onclick: () => { switchView("graph"); select("d:" + d.id, { center: true }); } },
-        ring, h("span", null, d.name + " "), h("b", { text: `${p.done}/${p.total}` })));
+      const p = domainProgress(d.id);
+      const ring = s("svg", { width: 26, height: 26, viewBox: "0 0 26 26", "aria-hidden": "true" });
+      [[6, p.breadth, 0.45], [10.5, p.depth, 1]].forEach(([R, frac, op]) => {
+        const C = 2 * Math.PI * R;
+        ring.append(s("circle", { cx: 13, cy: 13, r: R, fill: "none", stroke: "var(--border)", "stroke-width": 3 }));
+        ring.append(s("circle", { cx: 13, cy: 13, r: R, fill: "none", stroke: d.color, "stroke-opacity": op, "stroke-width": 3,
+          "stroke-dasharray": `${frac * C} ${C}`, transform: "rotate(-90 13 13)", "stroke-linecap": "round" }));
+      });
+      const b = Math.round(p.breadth * 100), dp = Math.round(p.depth * 100);
+      box.append(h("button", { class: "stat", title: `${d.name}: ${b}% of concepts at Aware or above (wide), ${dp}% at Apply or above (deep)`,
+        onclick: () => { switchView("graph"); select("d:" + d.id, { center: true }); } },
+        ring, h("span", null, d.name + " "), h("b", { text: `${b}%` }), h("span", { class: "stat-sub", text: " wide · " }), h("b", { text: `${dp}%` }), h("span", { class: "stat-sub", text: " deep" })));
     });
     $("log-count").textContent = log.length;
   }
@@ -745,7 +861,7 @@
   $("search").addEventListener("change", (e) => {
     const q = e.target.value.trim().toLowerCase(); if (!q) return;
     const c = D.concepts.find((x) => x.label.toLowerCase() === q) || D.concepts.find((x) => x.label.toLowerCase().includes(q));
-    if (c) goToConcept(c.id);
+    if (c && selectedId !== "c:" + c.id) goToConcept(c.id);
   });
   $("show-courses").addEventListener("change", (e) => { showCourses = e.target.checked; rebuild(); settle(200); positionAll(); fit(); });
   $("fit").addEventListener("click", fit);
@@ -764,7 +880,7 @@
   // ───────────────────────── learning log ─────────────────────────
   const form = $("log-form");
   const f = {
-    url: $("f-url"), title: $("f-title"), provider: $("f-provider"), domain: $("f-domain"), status: $("f-status"),
+    url: $("f-url"), title: $("f-title"), provider: $("f-provider"), domain: $("f-domain"), status: $("f-status"), kind: $("f-kind"),
     start: $("f-start"), end: $("f-end"), notes: $("f-notes"), filter: $("f-concept-filter"), concepts: $("f-concepts"),
     curriculum: $("f-curriculum"), coverage: $("f-coverage")
   };
@@ -1048,7 +1164,7 @@
     const e = log.find((x) => x.id === id); if (!e) return;
     editingId = id; conceptsTouched = true;
     f.url.value = e.url; f.title.value = e.title; f.provider.value = e.provider || ""; f.domain.value = e.domain;
-    f.status.value = e.status; f.start.value = e.start || ""; f.end.value = e.end || ""; f.notes.value = e.notes || "";
+    f.status.value = e.status; f.kind.value = e.kind || "course"; f.start.value = e.start || ""; f.end.value = e.end || ""; f.notes.value = e.notes || "";
     f.curriculum.value = e.curriculum || ""; f.coverage.textContent = "";
     formConcepts = new Set(e.concepts || []);
     $("form-title").textContent = "Edit course";
@@ -1064,7 +1180,7 @@
     const entry = {
       id: editingId || Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       url: f.url.value.trim(), title: f.title.value.trim(), provider: f.provider.value.trim(),
-      domain: f.domain.value, status: f.status.value, start: f.start.value, end: f.end.value,
+      domain: f.domain.value, kind: f.kind.value, status: f.status.value, start: f.start.value, end: f.end.value,
       concepts: [...formConcepts].filter((id) => conceptById[id]), notes: f.notes.value.trim(), curriculum: f.curriculum.value.trim(),
       added: editingId ? (log.find((x) => x.id === editingId)?.added || today()) : today()
     };
@@ -1089,7 +1205,7 @@
         h("div", { class: "entry-top" },
           h("div", null,
             h("a", { class: "title", href: safeUrl(e.url), target: "_blank", rel: "noopener noreferrer" }, e.title + " ↗"),
-            h("div", { class: "meta", text: [e.provider, d.name, dates].filter(Boolean).join(" · ") })),
+            h("div", { class: "meta", text: [e.kind === "project" ? "Project" : null, e.provider, d.name, dates].filter(Boolean).join(" · ") })),
           h("div", { class: "entry-actions" },
             h("span", { class: "status " + e.status, text: STATUS_LABEL[e.status] }),
             statusSelect(course))),
@@ -1110,7 +1226,7 @@
   $("log-filter").addEventListener("change", renderLog);
 
   $("export").addEventListener("click", () => {
-    const blob = new Blob([JSON.stringify({ version: 2, exported: today(), log, courseStatus, learned: [...manualLearned], custom }, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify({ version: 2, exported: today(), log, courseStatus, learned: [...manualLearned], levels, focus, custom }, null, 2)], { type: "application/json" });
     const a = h("a", { href: URL.createObjectURL(blob), download: `learning-path-${today()}.json` });
     document.body.append(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
@@ -1124,7 +1240,9 @@
       const ids = new Set(incoming.map((x) => x.id));
       log = [...incoming.filter((x) => x && x.id && x.url && x.title), ...log.filter((x) => !ids.has(x.id))];
       if (data.courseStatus) courseStatus = { ...courseStatus, ...data.courseStatus };
-      if (Array.isArray(data.learned)) data.learned.forEach((id) => manualLearned.add(id));
+      if (Array.isArray(data.learned)) data.learned.forEach((id) => { manualLearned.add(id); if (!levels[id]) levels[id] = 2; });
+      if (data.levels && typeof data.levels === "object") Object.entries(data.levels).forEach(([id, l]) => { if (l >= 1 && l <= 4) levels[id] = Math.max(levels[id] || 0, l); });
+      if (typeof data.focus === "string") focus = data.focus;
       if (data.custom) {
         arr(data.custom.domains).forEach((d) => registerDomain(d) && custom.domains.push(d));
         arr(data.custom.topics).forEach((t) => registerTopic(t) && custom.topics.push(t));
