@@ -667,7 +667,7 @@
     const active = allCourses().filter((c) => c.status === "in-progress");
     return h("div", { class: "panel-intro" },
       h("h3", { text: "Your skill map" }),
-      h("p", { text: "Start from AI, expand into Finance, and see where they connect. Click any node. Mark courses Completed and their concepts light up as skills gained." }),
+      h("p", { text: "CS Foundations at the top is the base; AI and Finance build on it, and AI × Finance is where they meet. Click any node. Mark courses Completed and their concepts light up as skills gained." }),
       ...D.domains.map((d) => h("section", null,
         h("h4", { style: `color:${d.color}`, text: d.name }), progressBar(domainProgress(d.id), d.color))),
       section(`Skills gained (${learned.length})`,
@@ -785,6 +785,17 @@
     "guardrail": ["guardrails"], "safety": ["guardrails"], "prompt injection": ["guardrails"],
     "observability": ["llmops"], "monitoring": ["llmops"], "tracing": ["llmops"], "llmops": ["llmops"], "deploy": ["llmops"],
     "architect": ["ai-architecture"], "system design": ["ai-architecture"], "forward deployed": ["fde"], "fde": ["fde"],
+    "python": ["python"], "programming": ["python", "functions"], "object-oriented": ["oop"], "oop": ["oop"], "classes": ["oop"],
+    "debug": ["debugging"], "async": ["async"], "concurren": ["async"], "big-o": ["big-o"], "big o": ["big-o"], "complexity": ["big-o"],
+    "data structure": ["arrays-lists", "hash-maps", "trees-graphs"], "algorithm": ["sorting-searching", "big-o"], "leetcode": ["arrays-lists", "hash-maps", "big-o"],
+    "array": ["arrays-lists"], "linked list": ["arrays-lists"], "hash": ["hash-maps"], "dictionar": ["hash-maps"], "tree": ["trees-graphs"], "graph": ["trees-graphs"],
+    "recursi": ["recursion"], "sort": ["sorting-searching"], "binary search": ["sorting-searching"],
+    "computer architecture": ["how-computers-work"], "cpu": ["how-computers-work"], "operating system": ["os-processes"], "process": ["os-processes"],
+    "network": ["networking"], "http": ["networking"], "dns": ["networking"], "sql": ["databases"], "database": ["databases"], "postgres": ["databases"],
+    "linux": ["cli"], "terminal": ["cli"], "command line": ["cli"], "bash": ["cli"], "shell": ["cli"], "git": ["git"], "github": ["git"],
+    "api": ["apis"], "rest": ["apis"], "json": ["apis"], "unit test": ["testing"], "pytest": ["testing"], "system design": ["system-design", "ai-architecture"],
+    "linear algebra": ["linear-algebra"], "matri": ["linear-algebra"], "vectors": ["linear-algebra"], "probability": ["probability-stats"], "statistic": ["probability-stats"],
+    "calculus": ["calculus"], "derivative": ["calculus"], "discrete math": ["discrete-math"], "logic": ["discrete-math"],
     "customer discovery": ["fde"], "stakeholder": ["fde"], "fine-tun": ["fine-tuning"], "embedding": ["embedding"]
   };
   const escapeRe = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -814,7 +825,7 @@
   }
   function autoConcepts() {
     if (conceptsTouched || editingId) return;
-    formConcepts = suggestConcepts(f.title.value + " " + f.url.value);
+    formConcepts = suggestConcepts(f.title.value + " " + f.url.value.replace(/^\s*https?:\/\/[^/]+/i, "").replace(/[-_/]+/g, " "));
     const d = guessDomain(formConcepts); if (d) f.domain.value = d;
     renderConceptPicker();
   }
