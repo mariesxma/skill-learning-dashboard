@@ -234,3 +234,17 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
 .custom-note { color: var(--muted); font-size: 13px; }
 .custom-edit { display: grid; gap: 8px; }
 .custom-edit input, .custom-edit textarea { width: 100%; }
+
+/* ── Course modules (e.g. CS50x weeks) ── */
+.modules { margin-top: 8px; font-size: 13px; }
+.modules summary { cursor: pointer; display: flex; align-items: center; gap: 10px; font-weight: 600; color: var(--muted); }
+.progress.mini { flex: 1; max-width: 120px; height: 6px; display: block; }
+.module { display: grid; grid-template-columns: auto 1fr; gap: 0 8px; align-items: start; padding: 5px 0; border-top: 1px solid var(--border); cursor: pointer; }
+.module:first-of-type { border-top: 0; }
+.module input { margin-top: 3px; }
+.module a { font-weight: 600; text-decoration: none; }
+.module.done a { color: #0f9f6e; }
+.module-skills { grid-column: 2; color: var(--muted); font-size: 12px; }
+.match { border: 1px solid var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--surface)); border-radius: 10px; padding: 10px 12px; display: grid; gap: 8px; }
+.match p { margin: 0; }
+.match .meta { color: var(--muted); font-size: 12px; }

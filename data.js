@@ -42,12 +42,15 @@ window.LEARNING_DATA = {
   concepts: [
     // ── CS · Programming Fundamentals (start here)
     { id: "python", topic: "cs-prog", label: "Python programming", definition: "The main language of AI and data work. Variables, types, loops, conditionals, and reading/writing files are the first things to get comfortable with." },
+    { id: "conditionals-loops", topic: "cs-prog", label: "Conditionals, loops & Boolean logic", definition: "The building blocks of every program: making decisions (if / else with true-or-false expressions) and repeating steps (for / while loops).", related: ["python"] },
+    { id: "c-lang", topic: "cs-prog", label: "C & compiled languages", definition: "A low-level language that is compiled to machine code before it runs. Learning it shows what higher-level languages like Python do for you.", related: ["memory-pointers"] },
     { id: "functions", topic: "cs-prog", label: "Functions & abstraction", definition: "Packaging logic into reusable named pieces with inputs and outputs, so big problems become small, testable parts.", related: ["python"] },
     { id: "oop", topic: "cs-prog", label: "Object-oriented programming", definition: "Organizing code around objects (classes) that bundle data with the functions that act on it. Most libraries you use, from pandas to SDKs, are built this way.", related: ["functions"] },
     { id: "debugging", topic: "cs-prog", label: "Debugging", definition: "Systematically finding why code doesn't work: reading error messages and stack traces, printing or stepping through values, and forming and testing hypotheses.", related: ["python"] },
     { id: "async", topic: "cs-prog", label: "Concurrency & async", definition: "Doing several things at once or without waiting, e.g. calling many APIs in parallel. Essential for fast agents and data pipelines.", related: ["functions"] },
 
     // ── CS · Data Structures & Algorithms
+    { id: "algorithms-pseudocode", topic: "cs-dsa", label: "Algorithms & pseudocode", definition: "An algorithm is a precise, step-by-step procedure for solving a problem; pseudocode writes it in plain language before you write real code.", related: ["sorting-searching"] },
     { id: "big-o", topic: "cs-dsa", label: "Big-O complexity", definition: "How an algorithm's time or memory grows as the input grows: O(1), O(log n), O(n), O(n²). It tells you whether code will still be fast with a million rows." },
     { id: "arrays-lists", topic: "cs-dsa", label: "Arrays & lists", definition: "Ordered collections accessed by position. The basis of vectors, matrices and dataframes.", related: ["big-o"] },
     { id: "hash-maps", topic: "cs-dsa", label: "Hash maps (dictionaries)", definition: "Key → value lookups in roughly constant time. Python's dict, JSON objects and caches all work this way.", related: ["big-o"] },
@@ -57,6 +60,8 @@ window.LEARNING_DATA = {
 
     // ── CS · Computer Systems & Networks
     { id: "how-computers-work", topic: "cs-systems", label: "How computers work", definition: "CPU, memory, storage and the layers between hardware and your code. It explains why some things are fast and others slow (e.g. GPUs for AI)." },
+    { id: "binary", topic: "cs-systems", label: "Binary & data representation", definition: "Computers store everything as bits (0s and 1s). Numbers, text (ASCII / Unicode), colors (RGB), images and sound are all patterns of bits.", related: ["how-computers-work"] },
+    { id: "memory-pointers", topic: "cs-systems", label: "Memory & pointers", definition: "How programs store data in memory at addresses, how pointers refer to those addresses, and how memory is allocated and freed.", related: ["how-computers-work"] },
     { id: "os-processes", topic: "cs-systems", label: "Operating systems & processes", definition: "How the OS runs programs as processes and threads, manages memory and files, and isolates programs from each other.", related: ["how-computers-work"] },
     { id: "networking", topic: "cs-systems", label: "Networking & HTTP", definition: "How machines talk: IP addresses, DNS, TCP, and HTTP requests/responses with status codes and headers. Every API call and web app relies on it." },
     { id: "databases", topic: "cs-systems", label: "Databases & SQL", definition: "Storing and querying structured data reliably: tables, keys, indexes, joins and transactions." },
@@ -66,6 +71,7 @@ window.LEARNING_DATA = {
     { id: "cli", topic: "cs-swe", label: "Command line & Linux", definition: "Using the terminal to navigate files, run programs, and automate tasks. Servers, cloud machines and most dev tools assume it." },
     { id: "git", topic: "cs-swe", label: "Git & version control", definition: "Tracking changes to code, branching, and collaborating through pull requests on GitHub (exactly how this skill map is built).", related: ["cli"] },
     { id: "apis", topic: "cs-swe", label: "APIs & JSON", definition: "How programs offer services to each other, usually REST over HTTP with JSON data. Calling LLM APIs and building tools for agents are both API work.", related: ["networking"] },
+    { id: "web-basics", topic: "cs-swe", label: "Web basics (HTML, CSS, JavaScript)", definition: "How web pages are built: HTML for structure, CSS for style, JavaScript for behavior, plus a server (e.g. Flask) that responds to browser requests.", related: ["networking", "apis"] },
     { id: "testing", topic: "cs-swe", label: "Testing", definition: "Writing automated checks (unit and integration tests) so you know code works and stays working after changes." },
     { id: "system-design", topic: "cs-swe", label: "System design basics", definition: "Combining services, databases, caches and queues into a system that scales and stays reliable, and reasoning about the trade-offs.", related: ["databases", "apis"] },
 
@@ -153,7 +159,21 @@ window.LEARNING_DATA = {
     { id: "c-cs50p", title: "CS50's Introduction to Programming with Python", provider: "Harvard", url: "https://cs50.harvard.edu/python/", cost: "Free", level: "Beginner",
       covers: ["python", "functions", "oop", "debugging", "testing"] },
     { id: "c-cs50x", title: "CS50x: Introduction to Computer Science", provider: "Harvard", url: "https://cs50.harvard.edu/x/", cost: "Free", level: "Beginner",
-      covers: ["how-computers-work", "big-o", "arrays-lists", "hash-maps", "sorting-searching", "recursion", "databases", "networking"] },
+      covers: ["how-computers-work"],
+      // Track week by week: each module lights up its own concepts when done.
+      modules: [
+        { id: "w0", title: "Week 0: Scratch", url: "https://cs50.harvard.edu/x/weeks/0/", covers: ["binary", "algorithms-pseudocode", "conditionals-loops", "functions", "sorting-searching"] },
+        { id: "w1", title: "Week 1: C", url: "https://cs50.harvard.edu/x/weeks/1/", covers: ["c-lang", "conditionals-loops", "cli"] },
+        { id: "w2", title: "Week 2: Arrays", url: "https://cs50.harvard.edu/x/weeks/2/", covers: ["arrays-lists", "debugging", "c-lang"] },
+        { id: "w3", title: "Week 3: Algorithms", url: "https://cs50.harvard.edu/x/weeks/3/", covers: ["sorting-searching", "big-o", "recursion"] },
+        { id: "w4", title: "Week 4: Memory", url: "https://cs50.harvard.edu/x/weeks/4/", covers: ["memory-pointers", "how-computers-work"] },
+        { id: "w5", title: "Week 5: Data Structures", url: "https://cs50.harvard.edu/x/weeks/5/", covers: ["arrays-lists", "hash-maps", "trees-graphs"] },
+        { id: "w6", title: "Week 6: Python", url: "https://cs50.harvard.edu/x/weeks/6/", covers: ["python", "functions"] },
+        { id: "w7", title: "Week 7: SQL", url: "https://cs50.harvard.edu/x/weeks/7/", covers: ["databases"] },
+        { id: "w8", title: "Week 8: HTML, CSS, JavaScript", url: "https://cs50.harvard.edu/x/weeks/8/", covers: ["networking", "web-basics"] },
+        { id: "w9", title: "Week 9: Flask", url: "https://cs50.harvard.edu/x/weeks/9/", covers: ["web-basics", "apis"] },
+        { id: "project", title: "Final Project", url: "https://cs50.harvard.edu/x/project/", covers: [] }
+      ] },
     { id: "c-missing", title: "The Missing Semester of Your CS Education", provider: "MIT", url: "https://missing.csail.mit.edu/", cost: "Free", level: "Beginner",
       covers: ["cli", "git", "debugging", "security-basics"] },
     { id: "c-cs50sql", title: "CS50's Introduction to Databases with SQL", provider: "Harvard", url: "https://cs50.harvard.edu/sql/", cost: "Free", level: "Beginner",

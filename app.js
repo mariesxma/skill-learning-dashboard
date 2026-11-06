@@ -135,7 +135,11 @@
   }
 
   function allCourses() {
-    const curated = D.courses.map((c) => ({ ...c, mine: false, status: courseStatus[c.id] || "none" }));
+    const curated = D.courses.map((c) => {
+      const modules = (c.modules || []).map((m) => ({ ...m, done: courseStatus[moduleKey(c.id, m.id)] === "completed" }));
+      const covers = [...new Set([...c.covers, ...modules.flatMap((m) => m.covers)])];
+      return { ...c, covers, modules, mine: false, status: courseStatus[c.id] || "none" };
+    });
     const mine = log.map((e) => ({
       id: "log:" + e.id, logId: e.id, title: e.title, provider: e.provider, url: e.url, cost: "", level: "",
       covers: (e.concepts || []).filter((id) => conceptById[id]), mine: true, status: e.status, domain: e.domain, notes: e.notes
@@ -144,8 +148,28 @@
   }
   const courseById = () => byId(allCourses());
 
+  // Courses can be split into modules (e.g. CS50x weeks); finishing a module lights up its concepts.
+  const moduleKey = (courseId, moduleId) => courseId + "#" + moduleId;
+  const shortTitle = (t) => t.split(":")[0];
   function learnedVia(conceptId) {
-    return allCourses().filter((c) => c.status === "completed" && c.covers.includes(conceptId));
+    const out = [];
+    allCourses().forEach((c) => {
+      if (c.status === "completed" && c.covers.includes(conceptId)) out.push(c);
+      else (c.modules || []).forEach((m) => {
+        if (m.done && m.covers.includes(conceptId)) out.push({ ...c, title: `${shortTitle(c.title)} · ${m.title}` });
+      });
+    });
+    return out;
+  }
+  function setModuleDone(courseId, moduleId, done) {
+    const key = moduleKey(courseId, moduleId);
+    if (done) courseStatus[key] = "completed"; else delete courseStatus[key];
+    const c = D.courses.find((x) => x.id === courseId);
+    const total = c.modules.length, finished = c.modules.filter((m) => courseStatus[moduleKey(c.id, m.id)] === "completed").length;
+    if (finished === total) courseStatus[c.id] = "completed";
+    else if (finished > 0 && ["none", "planned", "completed", undefined].includes(courseStatus[c.id])) courseStatus[c.id] = "in-progress";
+    else if (finished === 0 && courseStatus[c.id] === "in-progress") delete courseStatus[c.id];
+    save(); refreshAll();
   }
   const isLearned = (conceptId) => manualLearned.has(conceptId) || learnedVia(conceptId).length > 0;
 
@@ -570,12 +594,24 @@
     opts.forEach((o) => sel.append(h("option", { value: o, selected: o === course.status, text: STATUS_LABEL[o] })));
     return sel;
   }
-  function courseCard(c) {
+  function courseCard(c, { openModules = false } = {}) {
     return h("div", { class: "course-card" },
       h("a", { href: safeUrl(c.url), target: "_blank", rel: "noopener noreferrer" }, c.title + " ↗"),
       c.mine ? h("span", { class: "mine", text: "MINE" }) : null,
       h("div", { class: "meta", text: [c.provider, c.cost, c.level].filter(Boolean).join(" · ") }),
-      statusSelect(c));
+      statusSelect(c),
+      c.modules && c.modules.length ? moduleList(c, openModules) : null);
+  }
+  function moduleList(c, open) {
+    const done = c.modules.filter((m) => m.done).length;
+    const det = h("details", { class: "modules", open: open || null },
+      h("summary", null, h("span", { text: `${done} / ${c.modules.length} weeks done` }),
+        h("span", { class: "progress mini" }, h("div", { style: `width:${(done / c.modules.length) * 100}%;background:${domainById[courseDomainId(c)].color}` }))));
+    c.modules.forEach((m) => det.append(h("label", { class: "module" + (m.done ? " done" : "") },
+      h("input", { type: "checkbox", checked: m.done || null, onchange: (e) => setModuleDone(c.id, m.id, e.target.checked) }),
+      h("a", { href: safeUrl(m.url), target: "_blank", rel: "noopener noreferrer", text: m.title }),
+      h("span", { class: "module-skills", text: m.covers.map((id) => conceptById[id]?.label).filter(Boolean).join(", ") }))));
+    return det;
   }
   const sortCourses = (cs) => cs.sort((a, b) =>
     (b.mine - a.mine) || ((LEVELS[a.level] ?? 3) - (LEVELS[b.level] ?? 3)));
@@ -631,7 +667,8 @@
         h("div", { class: "course-card" },
           h("a", { href: safeUrl(c.url), target: "_blank", rel: "noopener noreferrer" }, "Open course ↗"),
           h("div", { class: "meta", text: [c.provider, c.cost, c.level].filter(Boolean).join(" · ") }),
-          statusSelect(c)),
+          statusSelect(c),
+          c.modules && c.modules.length ? moduleList(c, true) : null),
         c.notes ? section("My notes", h("p", { class: "def", style: "white-space:pre-wrap", text: c.notes })) : null,
         section("Skills this course gives you", ...c.covers.map(conceptChip)),
         c.mine ? h("button", { class: "btn small", onclick: () => { switchView("log"); startEdit(c.logId); }, text: "Edit in learning log" }) : null);
@@ -692,6 +729,7 @@
 
   function refreshAll() {
     nodes.forEach(drawNode); applyFocus(); renderStats(); renderPanel(); renderLog();
+    if (typeof renderKnownMatch === "function" && $("f-url")) renderKnownMatch();
   }
   function rebuild() {
     buildGraph(); renderGraph(); settle(60); reheat(0.4); refreshAll();
@@ -744,7 +782,7 @@
     "udemy.com": "Udemy", "coursera.org": "Coursera", "edx.org": "edX", "youtube.com": "YouTube", "youtu.be": "YouTube",
     "linkedin.com": "LinkedIn Learning", "datacamp.com": "DataCamp", "khanacademy.org": "Khan Academy", "kaggle.com": "Kaggle",
     "pluralsight.com": "Pluralsight", "udacity.com": "Udacity", "deeplearning.ai": "DeepLearning.AI", "skillshare.com": "Skillshare",
-    "github.com": "GitHub", "ocw.mit.edu": "MIT OpenCourseWare", "freecodecamp.org": "freeCodeCamp"
+    "github.com": "GitHub", "ocw.mit.edu": "MIT OpenCourseWare", "cs50.harvard.edu": "Harvard CS50", "freecodecamp.org": "freeCodeCamp"
   };
   const ACRONYMS = new Set(["fde", "mcp", "rag", "llmops", "ai", "ml", "llm", "llms", "nlp", "sql", "aws", "gpt", "api", "cfa", "frm", "etf", "dcf", "esg", "ui", "ux", "r", "2024", "2025", "2026"]);
   function parseLink(raw) {
@@ -755,6 +793,7 @@
     const markers = ["course", "learn", "specializations", "professional-certificates", "courses", "projects"];
     const i = parts.findIndex((p) => markers.includes(p));
     let slug = i >= 0 && parts[i + 1] ? parts[i + 1] : parts[parts.length - 1] || "";
+    if (/^\d+$/.test(slug) && parts.length > 1) slug = parts.slice(-2).join("-").replace(/s-(\d+)$/, "-$1");
     slug = decodeURIComponent(slug).replace(/\.[a-z0-9]+$/i, "");
     const title = slug.split(/[-_+]+/).filter(Boolean)
       .map((w) => (ACRONYMS.has(w.toLowerCase()) ? w.toUpperCase() : w[0].toUpperCase() + w.slice(1))).join(" ");
@@ -829,6 +868,39 @@
     const d = guessDomain(formConcepts); if (d) f.domain.value = d;
     renderConceptPicker();
   }
+  const normUrl = (u) => { try { const x = new URL(u.trim()); return (x.hostname.replace(/^www\./, "") + x.pathname).replace(/\/+$/, "").toLowerCase(); } catch { return ""; } };
+  function findKnown(url) {
+    const n = normUrl(url); if (!n) return null;
+    for (const c of D.courses) {
+      for (const m of c.modules || []) if (normUrl(m.url) === n) return { course: c, module: m };
+      if (normUrl(c.url) === n) return { course: c };
+    }
+    return null;
+  }
+  function renderKnownMatch() {
+    const box = $("f-match"), hit = findKnown(f.url.value);
+    box.textContent = ""; box.hidden = !hit; if (!hit) return;
+    const course = allCourses().find((c) => c.id === hit.course.id);
+    if (hit.module) {
+      const m = course.modules.find((x) => x.id === hit.module.id);
+      box.append(
+        h("p", null, h("strong", { text: `${m.title}` }), ` is part of ${course.title}, which is already on your map. Tick it off there instead of adding a separate course:`),
+        h("div", { class: "row" },
+          h("button", { type: "button", class: "btn small primary", text: m.done ? "✓ Done. Undo" : `Mark ${m.title.split(":")[0]} as done`, onclick: () => { setModuleDone(course.id, m.id, !m.done); renderKnownMatch(); } }),
+          h("button", { type: "button", class: "btn small", text: "Show course on map", onclick: () => showCuratedCourse(course.id) })),
+        m.covers.length ? h("p", { class: "meta", text: "Skills this week gives you: " + m.covers.map((id) => conceptById[id].label).join(", ") }) : null,
+        h("p", { class: "meta", text: `${course.modules.filter((x) => x.done).length} of ${course.modules.length} weeks done.` }));
+    } else {
+      box.append(h("p", null, h("strong", { text: course.title }), " is already on your map. Set its status here instead of adding it again:"),
+        h("div", { class: "row" }, statusSelect(course),
+          h("button", { type: "button", class: "btn small", text: "Show course on map", onclick: () => showCuratedCourse(course.id) })));
+    }
+  }
+  function showCuratedCourse(id) {
+    showCourses = true; $("show-courses").checked = true; rebuild(); switchView("graph");
+    requestAnimationFrame(() => select("k:" + id, { center: true }));
+  }
+  f.url.addEventListener("input", renderKnownMatch);
   f.url.addEventListener("input", autoFill);
   f.title.addEventListener("input", autoConcepts);
   f.provider.addEventListener("input", () => delete f.provider.dataset.auto);
@@ -966,7 +1038,7 @@
   function resetForm() {
     form.reset(); delete f.provider.dataset.auto;
     formConcepts = new Set(); conceptsTouched = false; autoTitle = ""; editingId = null;
-    f.coverage.textContent = "";
+    f.coverage.textContent = ""; $("f-match").hidden = true;
     $("form-title").textContent = "Add a course to your learning path";
     $("f-submit").textContent = "Add to my path";
     $("f-cancel").hidden = true;
