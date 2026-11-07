@@ -5,7 +5,7 @@
   const SVGNS = "http://www.w3.org/2000/svg";
 
   // ───────────────────────── storage (per browser) ─────────────────────────
-  const KEYS = { status: "skillmap.courseStatus", learned: "skillmap.learned", log: "skillmap.log" };
+  const KEYS = { status: "skillmap.courseStatus", learned: "skillmap.learned", log: "skillmap.log", custom: "skillmap.custom", levels: "skillmap.levels", focus: "skillmap.focus" };
   const store = {
     get(k, fallback) {
       try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
@@ -14,12 +14,18 @@
   };
   let courseStatus = store.get(KEYS.status, {});          // curated course id → status
   let manualLearned = new Set(store.get(KEYS.learned, [])); // concept ids marked learned by hand
-  let log = store.get(KEYS.log, []);                        // user's own courses
+  let log = store.get(KEYS.log, []);                        // user's own courses and projects
+  let levels = store.get(KEYS.levels, {}) || {};            // concept id → 1 Aware … 4 Master (set by you)
+  manualLearned.forEach((id) => { if (!levels[id]) levels[id] = 2; }); // older "mark as learned" = Understand
+  let focus = store.get(KEYS.focus, "t:ai-agentic");         // depth track: "t:<topic>" or "d:<domain>"
   if (!Array.isArray(log)) log = [];
   const save = () => {
     store.set(KEYS.status, courseStatus);
     store.set(KEYS.learned, [...manualLearned]);
     store.set(KEYS.log, log);
+    store.set(KEYS.custom, custom);
+    store.set(KEYS.levels, levels);
+    store.set(KEYS.focus, focus);
   };
 
   // ───────────────────────── lookups ─────────────────────────
@@ -28,6 +34,97 @@
   const topicById = byId(D.topics);
   const conceptById = byId(D.concepts);
   const conceptDomain = (c) => c.domain || topicById[c.topic].domain;
+
+  // ───────────────────────── your own domains / topics / concepts ─────────────────────────
+  // Created from your courses. Saved in this browser; Export JSON backs them up and
+  // lets them be merged into data.js permanently.
+  const DOMAIN_COLORS = ["#d946ef", "#0891b2", "#dc2626", "#4f46e5", "#65a30d", "#ea580c", "#0d9488", "#be185d"];
+  const DOMAIN_SLOTS = [[0, -520], [-600, 520], [600, 520], [-1040, -60], [1040, -60], [0, 820], [-1040, 560], [1040, 560], [-560, -600], [560, -600]];
+  const arr = (x) => (Array.isArray(x) ? x : []);
+  let custom = store.get(KEYS.custom, {}) || {};
+  custom = { domains: arr(custom.domains), topics: arr(custom.topics), concepts: arr(custom.concepts) };
+
+  function registerDomain(d) {
+    if (!d || !d.id || !d.name || domainById[d.id]) return false;
+    d.custom = true;
+    if (!Array.isArray(d.anchor)) d.anchor = freeSlot();
+    if (!d.color) d.color = freeColor();
+    D.domains.push(d); domainById[d.id] = d; return true;
+  }
+  function registerTopic(t) {
+    if (!t || !t.id || !t.name || topicById[t.id] || !domainById[t.domain]) return false;
+    t.custom = true; D.topics.push(t); topicById[t.id] = t; return true;
+  }
+  function registerConcept(c) {
+    if (!c || !c.id || !c.label || conceptById[c.id] || !topicById[c.topic]) return false;
+    c.custom = true; c.definition = c.definition || ""; D.concepts.push(c); conceptById[c.id] = c; return true;
+  }
+  function freeSlot() {
+    const used = D.domains.map((d) => d.anchor);
+    const slot = DOMAIN_SLOTS.find(([x, y]) => used.every(([ux, uy]) => Math.hypot(ux - x, uy - y) > 300));
+    if (slot) return [...slot];
+    const a = D.domains.length * 2.4;
+    return [Math.round(Math.cos(a) * 1200), Math.round(Math.sin(a) * 900)];
+  }
+  function freeColor() {
+    const used = new Set(D.domains.map((d) => d.color));
+    return DOMAIN_COLORS.find((c) => !used.has(c)) || DOMAIN_COLORS[D.domains.length % DOMAIN_COLORS.length];
+  }
+  custom.domains = custom.domains.filter(registerDomain);
+  custom.topics = custom.topics.filter(registerTopic);
+  custom.concepts = custom.concepts.filter(registerConcept);
+
+  const slugify = (t) => t.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "item";
+  function uniqueId(label, taken) {
+    const base = "my-" + slugify(label);
+    let id = base, i = 2;
+    while (taken[id]) id = base + "-" + i++;
+    return id;
+  }
+  function addDomain(name, source) {
+    const d = { id: uniqueId(name, domainById), name, summary: source ? `Added from “${source}”.` : "Added by you.", source };
+    registerDomain(d); custom.domains.push(d); return d.id;
+  }
+  function addTopic(name, domain, source) {
+    const t = { id: uniqueId(name, topicById), domain, name, source };
+    registerTopic(t); custom.topics.push(t); return t.id;
+  }
+  function addConcept(label, topic, source, definition = "") {
+    const existing = D.concepts.find((c) => c.label.toLowerCase() === label.toLowerCase());
+    if (existing) return existing.id;
+    const c = { id: uniqueId(label, conceptById), topic, label, definition, source };
+    registerConcept(c); custom.concepts.push(c); return c.id;
+  }
+  function removeCustom(kind, id) {
+    let conceptIds = [];
+    if (kind === "concept") conceptIds = [id];
+    if (kind === "topic") conceptIds = D.concepts.filter((c) => c.topic === id).map((c) => c.id);
+    if (kind === "domain") {
+      const topicIds = D.topics.filter((t) => t.domain === id).map((t) => t.id);
+      conceptIds = D.concepts.filter((c) => topicIds.includes(c.topic)).map((c) => c.id);
+      topicIds.forEach((t) => { delete topicById[t]; });
+      D.topics = D.topics.filter((t) => !topicIds.includes(t.id));
+      custom.topics = custom.topics.filter((t) => !topicIds.includes(t.id));
+      D.domains = D.domains.filter((d) => d.id !== id); delete domainById[id];
+      custom.domains = custom.domains.filter((d) => d.id !== id);
+      log.forEach((e) => { if (e.domain === id) e.domain = D.domains[0].id; });
+    }
+    if (kind === "topic") {
+      D.topics = D.topics.filter((t) => t.id !== id); delete topicById[id];
+      custom.topics = custom.topics.filter((t) => t.id !== id);
+    }
+    D.concepts = D.concepts.filter((c) => !conceptIds.includes(c.id));
+    conceptIds.forEach((c) => { delete conceptById[c]; manualLearned.delete(c); delete levels[c]; });
+    custom.concepts = custom.concepts.filter((c) => !conceptIds.includes(c.id));
+    log.forEach((e) => { e.concepts = (e.concepts || []).filter((c) => !conceptIds.includes(c)); });
+    afterCustomChange();
+  }
+  function afterCustomChange() {
+    save(); refreshDomainOptions(); refreshDatalist();
+    if (selectedId && !nodeById[selectedId]) selectedId = null;
+    rebuild();
+    if (selectedId && !nodeById[selectedId]) { selectedId = null; renderPanel(); }
+  }
   const LEVELS = { Beginner: 0, Intermediate: 1, Advanced: 2 };
   const STATUS_LABEL = { none: "Not started", planned: "Planned", "in-progress": "In progress", completed: "Completed" };
 
@@ -43,24 +140,73 @@
   }
 
   function allCourses() {
-    const curated = D.courses.map((c) => ({ ...c, mine: false, status: courseStatus[c.id] || "none" }));
+    const curated = D.courses.map((c) => {
+      const modules = (c.modules || []).map((m) => ({ ...m, done: courseStatus[moduleKey(c.id, m.id)] === "completed" }));
+      const covers = [...new Set([...c.covers, ...modules.flatMap((m) => m.covers)])];
+      return { ...c, covers, modules, mine: false, status: courseStatus[c.id] || "none" };
+    });
     const mine = log.map((e) => ({
       id: "log:" + e.id, logId: e.id, title: e.title, provider: e.provider, url: e.url, cost: "", level: "",
-      covers: (e.concepts || []).filter((id) => conceptById[id]), mine: true, status: e.status, domain: e.domain, notes: e.notes
+      covers: (e.concepts || []).filter((id) => conceptById[id]), mine: true, kind: e.kind || "course", status: e.status, domain: e.domain, notes: e.notes
     }));
     return [...mine, ...curated];
   }
   const courseById = () => byId(allCourses());
 
+  // Courses can be split into modules (e.g. CS50x weeks); finishing a module lights up its concepts.
+  const moduleKey = (courseId, moduleId) => courseId + "#" + moduleId;
+  const shortTitle = (t) => t.split(":")[0];
   function learnedVia(conceptId) {
-    return allCourses().filter((c) => c.status === "completed" && c.covers.includes(conceptId));
+    const out = [];
+    allCourses().forEach((c) => {
+      if (c.status === "completed" && c.covers.includes(conceptId)) out.push(c);
+      else (c.modules || []).forEach((m) => {
+        if (m.done && m.covers.includes(conceptId)) out.push({ ...c, title: `${shortTitle(c.title)} · ${m.title}` });
+      });
+    });
+    return out;
   }
-  const isLearned = (conceptId) => manualLearned.has(conceptId) || learnedVia(conceptId).length > 0;
+  function setModuleDone(courseId, moduleId, done) {
+    const key = moduleKey(courseId, moduleId);
+    if (done) courseStatus[key] = "completed"; else delete courseStatus[key];
+    const c = D.courses.find((x) => x.id === courseId);
+    const total = c.modules.length, finished = c.modules.filter((m) => courseStatus[moduleKey(c.id, m.id)] === "completed").length;
+    if (finished === total) courseStatus[c.id] = "completed";
+    else if (finished > 0 && ["none", "planned", "completed", undefined].includes(courseStatus[c.id])) courseStatus[c.id] = "in-progress";
+    else if (finished === 0 && courseStatus[c.id] === "in-progress") delete courseStatus[c.id];
+    save(); refreshAll();
+  }
+  // ── Depth levels: courses lift a concept to Understand, your own projects to Apply.
+  const LEVEL_NAMES = ["Not started", "Aware", "Understand", "Apply", "Master"];
+  const LEVEL_HELP = [
+    "Not touched yet.",
+    "You can say what it is in one sentence and when it's used. Time-box: about 1 hour (a video or an article), then move on.",
+    "You can explain how it works and its trade-offs. Time-box: 3–5 hours, usually one course module.",
+    "You've used it in something you built yourself. This comes from projects, not courses.",
+    "You could teach it, or debug hard problems with it without looking things up."
+  ];
+  const NEXT_STEP = [
+    "Get to Aware: spend about an hour on a video or article, then move on.",
+    "Get to Understand: take one course module on it (see the courses below).",
+    "Get to Apply: use it in a small project, then log the project in My learning log with Type = Project.",
+    "Get to Master: teach it, write about it, or use it in a harder project.",
+    ""
+  ];
+  const LEVEL_FILL = [0, 0.22, 0.5, 1, 1];
+  function derivedLevel(conceptId) {
+    const via = learnedVia(conceptId);
+    if (!via.length) return 0;
+    return via.some((v) => v.mine && v.kind === "project") ? 3 : 2;
+  }
+  const levelOf = (conceptId) => Math.max(levels[conceptId] || 0, derivedLevel(conceptId));
+  const isLearned = (conceptId) => levelOf(conceptId) >= 2;
 
   function domainProgress(domainId) {
     const cs = D.concepts.filter((c) => conceptDomain(c) === domainId);
-    const done = cs.filter((c) => isLearned(c.id)).length;
-    return { done, total: cs.length, frac: cs.length ? done / cs.length : 0 };
+    const lv = cs.map((c) => levelOf(c.id)), n = cs.length || 1;
+    const done = lv.filter((l) => l >= 2).length;
+    return { done, total: cs.length, frac: done / n,
+      breadth: lv.filter((l) => l >= 1).length / n, depth: lv.filter((l) => l >= 3).length / n };
   }
 
   function setCourseStatus(course, status) {
@@ -247,23 +393,31 @@
     const g = n.el; g.textContent = "";
     const color = domainById[n.domain].color;
     if (n.type === "domain") {
-      const p = domainProgress(n.domain), R = n.r + 7, C = 2 * Math.PI * R;
-      g.append(s("circle", { r: R, fill: "none", stroke: "var(--border)", "stroke-width": 5 }));
-      g.append(s("circle", { r: R, fill: "none", stroke: color, "stroke-width": 5, "stroke-linecap": "round",
-        "stroke-dasharray": `${p.frac * C} ${C}`, transform: "rotate(-90)" }));
+      // inner ring = breadth (≥ Aware), outer ring = depth (≥ Apply)
+      const p = domainProgress(n.domain);
+      const ring = (R, frac, opacity) => {
+        const C = 2 * Math.PI * R;
+        g.append(s("circle", { r: R, fill: "none", stroke: "var(--border)", "stroke-width": 5 }));
+        g.append(s("circle", { r: R, fill: "none", stroke: color, "stroke-opacity": opacity, "stroke-width": 5, "stroke-linecap": "round",
+          "stroke-dasharray": `${frac * C} ${C}`, transform: "rotate(-90)" }));
+      };
+      ring(n.r + 7, p.breadth, 0.45); ring(n.r + 14, p.depth, 1);
       g.append(s("circle", { class: "shape", r: n.r, fill: color, stroke: color, "stroke-width": 2 }));
       const pct = s("text", { "text-anchor": "middle", dy: 5, style: "fill:#fff;stroke:none;font-size:13px;font-weight:700" });
-      pct.textContent = Math.round(p.frac * 100) + "%";
+      pct.textContent = Math.round(p.breadth * 100) + "%";
       g.append(pct);
-      g.append(label(n.label, { "text-anchor": "middle", y: R + 20 }));
+      g.append(label((n.ref.custom ? "★ " : "") + n.label, { "text-anchor": "middle", y: n.r + 34 }));
+      g.append(label(`${Math.round(p.breadth * 100)}% wide · ${Math.round(p.depth * 100)}% deep`, { "text-anchor": "middle", y: n.r + 50, class: "sub" }));
     } else if (n.type === "topic") {
-      g.append(s("circle", { class: "shape", r: n.r, style: "fill:var(--surface)", stroke: color, "stroke-width": 3 }));
+      g.append(s("circle", { class: "shape", r: n.r, style: "fill:var(--surface)", stroke: color, "stroke-width": 3, "stroke-dasharray": n.ref.custom ? "4 3" : null }));
       g.append(label(n.label, { "text-anchor": "middle", y: n.r + 16 }));
     } else if (n.type === "concept") {
-      const learned = isLearned(n.ref.id);
-      if (learned) g.append(s("circle", { r: n.r + 6, fill: color, "fill-opacity": 0.22 }));
-      g.append(s("circle", { class: "shape", r: n.r, stroke: color, "stroke-width": 2.2,
-        style: learned ? `fill:${color}` : "fill:var(--surface)" }));
+      const lv = levelOf(n.ref.id);
+      if (lv >= 3) g.append(s("circle", { r: n.r + 6, fill: color, "fill-opacity": 0.22 }));
+      if (lv === 4) g.append(s("circle", { r: n.r + 9, fill: "none", stroke: color, "stroke-width": 1.5 }));
+      g.append(s("circle", { r: n.r, style: "fill:var(--surface)" }));
+      g.append(s("circle", { class: "shape", r: n.r, stroke: color, "stroke-width": 2.2, "stroke-dasharray": n.ref.custom && lv < 3 ? "3 2" : null,
+        fill: color, "fill-opacity": LEVEL_FILL[lv] }));
       g.append(label(n.label, { x: n.r + 5, y: 4 }));
     } else {
       const done = n.ref.status === "completed";
@@ -464,8 +618,10 @@
   function conceptChip(id) {
     const c = conceptById[id]; if (!c) return null;
     const color = domainById[conceptDomain(c)].color;
-    return h("button", { class: "chip" + (isLearned(id) ? " learned" : ""), onclick: () => goToConcept(id), title: c.definition },
-      h("span", { class: "dot", style: `background:${color}` }), c.label);
+    const lv = levelOf(id);
+    return h("button", { class: "chip", onclick: () => goToConcept(id), title: (lv ? LEVEL_NAMES[lv] + " · " : "") + c.definition },
+      h("span", { class: "dot", style: `background:${color};opacity:${lv ? 1 : 0.35}` }), c.label,
+      lv ? h("span", { class: "lv", style: `--c:${color}`, text: "L" + lv }) : null);
   }
   function domainChip(id) {
     const d = domainById[id];
@@ -478,12 +634,24 @@
     opts.forEach((o) => sel.append(h("option", { value: o, selected: o === course.status, text: STATUS_LABEL[o] })));
     return sel;
   }
-  function courseCard(c) {
+  function courseCard(c, { openModules = false } = {}) {
     return h("div", { class: "course-card" },
       h("a", { href: safeUrl(c.url), target: "_blank", rel: "noopener noreferrer" }, c.title + " ↗"),
       c.mine ? h("span", { class: "mine", text: "MINE" }) : null,
       h("div", { class: "meta", text: [c.provider, c.cost, c.level].filter(Boolean).join(" · ") }),
-      statusSelect(c));
+      statusSelect(c),
+      c.modules && c.modules.length ? moduleList(c, openModules) : null);
+  }
+  function moduleList(c, open) {
+    const done = c.modules.filter((m) => m.done).length;
+    const det = h("details", { class: "modules", open: open || null },
+      h("summary", null, h("span", { text: `${done} / ${c.modules.length} weeks done` }),
+        h("span", { class: "progress mini" }, h("div", { style: `width:${(done / c.modules.length) * 100}%;background:${domainById[courseDomainId(c)].color}` }))));
+    c.modules.forEach((m) => det.append(h("label", { class: "module" + (m.done ? " done" : "") },
+      h("input", { type: "checkbox", checked: m.done || null, onchange: (e) => setModuleDone(c.id, m.id, e.target.checked) }),
+      h("a", { href: safeUrl(m.url), target: "_blank", rel: "noopener noreferrer", text: m.title }),
+      h("span", { class: "module-skills", text: m.covers.map((id) => conceptById[id]?.label).filter(Boolean).join(", ") }))));
+    return det;
   }
   const sortCourses = (cs) => cs.sort((a, b) =>
     (b.mine - a.mine) || ((LEVELS[a.level] ?? 3) - (LEVELS[b.level] ?? 3)));
@@ -508,7 +676,7 @@
       const topics = D.topics.filter((t) => t.domain === d.id);
       const direct = D.concepts.filter((c) => c.domain === d.id);
       panelBody.append(head, h("h3", { text: d.name }), h("p", { class: "def", text: d.summary }),
-        progressBar(domainProgress(d.id), d.color),
+        (() => { const p = domainProgress(d.id); return h("p", { class: "meta", text: `${Math.round(p.breadth * 100)}% wide (Aware+) · ${Math.round(p.depth * 100)}% deep (Apply+) · ${p.total} concepts` }); })(),
         ...topics.map((t) => section(t.name, ...D.concepts.filter((c) => c.topic === t.id).map((c) => conceptChip(c.id)))),
         direct.length ? section("Concepts", ...direct.map((c) => conceptChip(c.id))) : null,
         section("Learning path: best courses", ...courses.map(courseCard)));
@@ -519,18 +687,13 @@
         section("Terminology", ...cs.map((c) => conceptChip(c.id))),
         section("Courses for this topic", ...courses.map(courseCard)));
     } else if (n.type === "concept") {
-      const c = n.ref, via = learnedVia(c.id), learned = isLearned(c.id);
+      const c = n.ref;
       const rel = [...neighbors[n.id]].filter((id) => id.startsWith("c:") && id !== n.id).map((id) => id.slice(2));
       const courses = sortCourses(allCourses().filter((k) => k.covers.includes(c.id)));
       panelBody.append(head, h("h3", { text: c.label }),
         h("div", null, domainChip(conceptDomain(c)), c.topic ? h("span", { class: "chip", style: "cursor:default", text: topicById[c.topic].name }) : null),
-        h("p", { class: "def", text: c.definition }),
-        h("div", { style: "display:flex;gap:8px;align-items:center;flex-wrap:wrap" },
-          h("span", { class: "badge" + (learned ? " ok" : ""), text: learned ? "✓ Skill gained" : "Not learned yet" }),
-          via.length ? null : h("button", { class: "btn small", onclick: () => {
-            manualLearned.has(c.id) ? manualLearned.delete(c.id) : manualLearned.add(c.id); save(); refreshAll();
-          }, text: manualLearned.has(c.id) ? "Unmark" : "Mark as learned" })),
-        via.length ? h("p", { class: "meta", style: "color:var(--muted);font-size:12px", text: "Learned through: " + via.map((v) => v.title).join(", ") }) : null,
+        h("p", { class: "def", text: c.definition || "No definition yet. Add one under “Your addition” below." }),
+        levelPicker(c, color),
         rel.length ? section("Connected concepts", ...rel.map(conceptChip)) : null,
         section("Best courses for this", ...(courses.length ? courses.map(courseCard) : [h("p", { class: "empty", text: "No course yet. Add one in My learning log." })])));
     } else {
@@ -539,43 +702,150 @@
         h("div", { class: "course-card" },
           h("a", { href: safeUrl(c.url), target: "_blank", rel: "noopener noreferrer" }, "Open course ↗"),
           h("div", { class: "meta", text: [c.provider, c.cost, c.level].filter(Boolean).join(" · ") }),
-          statusSelect(c)),
+          statusSelect(c),
+          c.modules && c.modules.length ? moduleList(c, true) : null),
         c.notes ? section("My notes", h("p", { class: "def", style: "white-space:pre-wrap", text: c.notes })) : null,
         section("Skills this course gives you", ...c.covers.map(conceptChip)),
         c.mine ? h("button", { class: "btn small", onclick: () => { switchView("log"); startEdit(c.logId); }, text: "Edit in learning log" }) : null);
     }
+    if (n.ref.custom) panelBody.append(customControls(n));
   }
 
+  function levelPicker(c, color) {
+    const lv = levelOf(c.id), derived = derivedLevel(c.id), via = learnedVia(c.id);
+    const box = h("section", { class: "level-box" }, h("h4", { text: "Your level" }));
+    const row = h("div", { class: "levels", role: "group", "aria-label": "Your level for " + c.label });
+    LEVEL_NAMES.forEach((name, i) => {
+      const locked = i < derived;
+      row.append(h("button", {
+        class: "lvl" + (i === lv ? " on" : "") + (i > 0 && i <= lv ? " filled" : ""), style: `--c:${color}`,
+        "aria-pressed": i === lv, disabled: locked || null, title: locked ? `Already ${LEVEL_NAMES[derived]} from your courses/projects` : LEVEL_HELP[i],
+        onclick: () => { if (i === 0) delete levels[c.id]; else levels[c.id] = i; save(); refreshAll(); }
+      }, i === 0 ? "–" : h("span", null, h("b", { text: String(i) }), " " + name)));
+    });
+    box.append(row, h("p", { class: "lvl-help", text: LEVEL_HELP[lv] }));
+    if (derived) box.append(h("p", { class: "meta lvl-via", text: `${LEVEL_NAMES[derived]} from: ` + via.map((v) => v.title).join(", ") }));
+    if (NEXT_STEP[lv]) box.append(h("p", { class: "lvl-next", text: "Next: " + NEXT_STEP[lv] }));
+    return box;
+  }
+
+  function customControls(n) {
+    const kind = n.type, ref = n.ref;
+    const what = { domain: "domain", topic: "topic", concept: "concept" }[kind];
+    const box = section("Your addition",
+      h("p", { class: "custom-note", text: "★ You added this" + (ref.source ? ` from “${ref.source}”` : "") + ". It's saved in this browser; use Export JSON to back it up or make it permanent." }));
+    const nameInput = h("input", { type: "text", value: kind === "concept" ? ref.label : ref.name, "aria-label": "Name" });
+    const defInput = h("textarea", { rows: 3, placeholder: "Definition, in your own words…", "aria-label": "Definition" });
+    defInput.value = kind === "concept" ? ref.definition : (ref.summary || "");
+    box.append(h("div", { class: "custom-edit" }, nameInput, kind === "topic" ? null : defInput,
+      h("div", { class: "row" },
+        h("button", { class: "btn small", text: "Save", onclick: () => {
+          const name = nameInput.value.trim(); if (!name) return;
+          if (kind === "concept") { ref.label = name; ref.definition = defInput.value.trim(); }
+          else { ref.name = name; if (kind === "domain") ref.summary = defInput.value.trim(); }
+          n.label = name; afterCustomChange();
+        } }),
+        h("button", { class: "btn small danger", text: "Remove " + what, onclick: () => {
+          const extra = kind === "concept" ? "" : ` and everything inside it`;
+          if (confirm(`Remove “${n.label}”${extra} from your map?`)) removeCustom(kind, ref.id);
+        } }))));
+    return box;
+  }
+
+  // ── "Next up": go deeper in your focus track, wider everywhere else
+  let shuffleSeed = 0;
+  const hashStr = (t) => { let x = 2166136261; for (const ch of t) x = Math.imul(x ^ ch.charCodeAt(0), 16777619); return (x >>> 0) / 4294967295; };
+  function inFocus(c) {
+    if (!focus) return false;
+    const [k, id] = focus.split(":");
+    return k === "t" ? c.topic === id : conceptDomain(c) === id;
+  }
+  function nextUp() {
+    const rnd = (id) => hashStr(id + ":" + shuffleSeed);
+    const deepen = D.concepts.filter((c) => inFocus(c) && levelOf(c.id) < 3)
+      .sort((a, b) => (levelOf(b.id) - levelOf(a.id)) || (rnd(a.id) - rnd(b.id))).slice(0, 2);
+    const known = (id) => levelOf(id) >= 1;
+    const frontier = (c) => [...(neighbors["c:" + c.id] || [])].filter((nid) => nid.startsWith("c:") && known(nid.slice(2))).length;
+    const pool = D.concepts.filter((c) => !inFocus(c) && levelOf(c.id) === 0)
+      .sort((a, b) => (Math.min(frontier(b), 2) - Math.min(frontier(a), 2)) || (rnd(a.id) - rnd(b.id)));
+    const broaden = [];
+    for (const c of pool) {
+      if (broaden.length === 2) break;
+      if (!broaden.some((x) => conceptDomain(x) === conceptDomain(c))) broaden.push(c);
+    }
+    return { deepen, broaden };
+  }
+  function suggestionCard(c, kind) {
+    const lv = levelOf(c.id), color = domainById[conceptDomain(c)].color;
+    const course = sortCourses(allCourses().filter((k) => k.covers.includes(c.id) && k.status !== "completed"))[0];
+    return h("div", { class: "suggest" },
+      h("div", { class: "suggest-top" }, h("span", { class: "suggest-kind " + kind, text: kind === "deepen" ? "Go deeper" : "Go wider" }), conceptChip(c.id)),
+      h("p", { class: "meta", text: kind === "deepen" ? NEXT_STEP[lv] : NEXT_STEP[0] }),
+      course && (kind === "deepen" ? lv >= 1 : true) && lv < 2
+        ? h("a", { class: "suggest-link", href: safeUrl(course.url), target: "_blank", rel: "noopener noreferrer", text: course.title + " ↗" }) : null);
+  }
+  function focusSelect() {
+    const sel = h("select", { "aria-label": "Focus track", onchange: (e) => { focus = e.target.value; save(); refreshAll(); } });
+    D.domains.forEach((d) => {
+      const g = h("optgroup", { label: d.name });
+      g.append(h("option", { value: "d:" + d.id, text: `All of ${d.name}` }));
+      D.topics.filter((t) => t.domain === d.id).forEach((t) => g.append(h("option", { value: "t:" + t.id, text: t.name })));
+      sel.append(g);
+    });
+    sel.value = focus;
+    return sel;
+  }
   function renderIntro() {
-    const learned = D.concepts.filter((c) => isLearned(c.id));
     const active = allCourses().filter((c) => c.status === "in-progress");
+    const { deepen, broaden } = nextUp();
+    const byLevel = [4, 3, 2, 1].map((l) => [l, D.concepts.filter((c) => levelOf(c.id) === l)]);
+    const bar = (frac, color, opacity, text) => h("div", { class: "bd-row" },
+      h("span", { class: "bd-label", text }),
+      h("div", { class: "progress" }, h("div", { style: `width:${frac * 100}%;background:${color};opacity:${opacity}` })),
+      h("span", { class: "bd-pct", text: Math.round(frac * 100) + "%" }));
     return h("div", { class: "panel-intro" },
       h("h3", { text: "Your skill map" }),
-      h("p", { text: "Start from AI, expand into Finance, and see where they connect. Click any node. Mark courses Completed and their concepts light up as skills gained." }),
-      ...D.domains.map((d) => h("section", null,
-        h("h4", { style: `color:${d.color}`, text: d.name }), progressBar(domainProgress(d.id), d.color))),
-      section(`Skills gained (${learned.length})`,
-        ...(learned.length ? learned.map((c) => conceptChip(c.id)) : [h("p", { class: "empty", text: "None yet. Pick a concept and start a course." })])),
-      active.length ? section("In progress", ...active.map(courseCard)) : null);
+      h("p", { text: "Aim for T-shaped skills: wide across the map (Aware of many concepts) and deep in one or two focus areas (able to Apply them). Courses lift concepts to Understand; your own projects lift them to Apply." }),
+      section("Focus track (where to go deep)", focusSelect()),
+      section("Next up",
+        ...deepen.map((c) => suggestionCard(c, "deepen")),
+        ...broaden.map((c) => suggestionCard(c, "broaden")),
+        !deepen.length && !broaden.length ? h("p", { class: "empty", text: "Nothing to suggest. Pick a different focus track." }) : null,
+        h("button", { class: "btn small", text: "↻ Other suggestions", onclick: () => { shuffleSeed++; renderPanel(); } })),
+      section("Breadth & depth",
+        ...D.domains.map((d) => { const p = domainProgress(d.id); return h("div", { class: "bd" },
+          h("div", { class: "bd-name", style: `color:${d.color}`, text: d.name }),
+          bar(p.breadth, d.color, 0.45, "Wide"), bar(p.depth, d.color, 1, "Deep")); })),
+      section("Skills by level",
+        ...byLevel.map(([l, cs]) => h("div", { class: "by-level" },
+          h("div", { class: "by-level-head" }, h("b", { text: `L${l} ${LEVEL_NAMES[l]}` }), h("span", { class: "meta", text: ` · ${cs.length}` })),
+          cs.length ? h("div", null, ...cs.map((c) => conceptChip(c.id))) : null))),
+      active.length ? section("In progress", ...active.map((c) => courseCard(c))) : null);
   }
 
   // ───────────────────────── header stats ─────────────────────────
   function renderStats() {
     const box = $("stats"); box.textContent = "";
     D.domains.forEach((d) => {
-      const p = domainProgress(d.id), R = 9, C = 2 * Math.PI * R;
-      const ring = s("svg", { width: 24, height: 24, viewBox: "0 0 24 24", "aria-hidden": "true" });
-      ring.append(s("circle", { cx: 12, cy: 12, r: R, fill: "none", stroke: "var(--border)", "stroke-width": 4 }));
-      ring.append(s("circle", { cx: 12, cy: 12, r: R, fill: "none", stroke: d.color, "stroke-width": 4,
-        "stroke-dasharray": `${p.frac * C} ${C}`, transform: "rotate(-90 12 12)", "stroke-linecap": "round" }));
-      box.append(h("button", { class: "stat", onclick: () => { switchView("graph"); select("d:" + d.id, { center: true }); } },
-        ring, h("span", null, d.name + " "), h("b", { text: `${p.done}/${p.total}` })));
+      const p = domainProgress(d.id);
+      const ring = s("svg", { width: 26, height: 26, viewBox: "0 0 26 26", "aria-hidden": "true" });
+      [[6, p.breadth, 0.45], [10.5, p.depth, 1]].forEach(([R, frac, op]) => {
+        const C = 2 * Math.PI * R;
+        ring.append(s("circle", { cx: 13, cy: 13, r: R, fill: "none", stroke: "var(--border)", "stroke-width": 3 }));
+        ring.append(s("circle", { cx: 13, cy: 13, r: R, fill: "none", stroke: d.color, "stroke-opacity": op, "stroke-width": 3,
+          "stroke-dasharray": `${frac * C} ${C}`, transform: "rotate(-90 13 13)", "stroke-linecap": "round" }));
+      });
+      const b = Math.round(p.breadth * 100), dp = Math.round(p.depth * 100);
+      box.append(h("button", { class: "stat", title: `${d.name}: ${b}% of concepts at Aware or above (wide), ${dp}% at Apply or above (deep)`,
+        onclick: () => { switchView("graph"); select("d:" + d.id, { center: true }); } },
+        ring, h("span", null, d.name + " "), h("b", { text: `${b}%` }), h("span", { class: "stat-sub", text: " wide · " }), h("b", { text: `${dp}%` }), h("span", { class: "stat-sub", text: " deep" })));
     });
     $("log-count").textContent = log.length;
   }
 
   function refreshAll() {
     nodes.forEach(drawNode); applyFocus(); renderStats(); renderPanel(); renderLog();
+    if (typeof renderKnownMatch === "function" && $("f-url")) renderKnownMatch();
   }
   function rebuild() {
     buildGraph(); renderGraph(); settle(60); reheat(0.4); refreshAll();
@@ -583,11 +853,15 @@
 
   // ───────────────────────── toolbar ─────────────────────────
   const dl = $("concept-list");
-  D.concepts.forEach((c) => dl.append(h("option", { value: c.label })));
+  function refreshDatalist() {
+    dl.textContent = "";
+    D.concepts.forEach((c) => dl.append(h("option", { value: c.label })));
+  }
+  refreshDatalist();
   $("search").addEventListener("change", (e) => {
     const q = e.target.value.trim().toLowerCase(); if (!q) return;
     const c = D.concepts.find((x) => x.label.toLowerCase() === q) || D.concepts.find((x) => x.label.toLowerCase().includes(q));
-    if (c) goToConcept(c.id);
+    if (c && selectedId !== "c:" + c.id) goToConcept(c.id);
   });
   $("show-courses").addEventListener("change", (e) => { showCourses = e.target.checked; rebuild(); settle(200); positionAll(); fit(); });
   $("fit").addEventListener("click", fit);
@@ -606,20 +880,27 @@
   // ───────────────────────── learning log ─────────────────────────
   const form = $("log-form");
   const f = {
-    url: $("f-url"), title: $("f-title"), provider: $("f-provider"), domain: $("f-domain"), status: $("f-status"),
-    start: $("f-start"), end: $("f-end"), notes: $("f-notes"), filter: $("f-concept-filter"), concepts: $("f-concepts")
+    url: $("f-url"), title: $("f-title"), provider: $("f-provider"), domain: $("f-domain"), status: $("f-status"), kind: $("f-kind"),
+    start: $("f-start"), end: $("f-end"), notes: $("f-notes"), filter: $("f-concept-filter"), concepts: $("f-concepts"),
+    curriculum: $("f-curriculum"), coverage: $("f-coverage")
   };
   let formConcepts = new Set(), conceptsTouched = false, autoTitle = "", editingId = null;
 
-  D.domains.forEach((d) => f.domain.append(h("option", { value: d.id, text: d.name })));
+  function refreshDomainOptions() {
+    const keep = f.domain.value;
+    f.domain.textContent = "";
+    D.domains.forEach((d) => f.domain.append(h("option", { value: d.id, text: d.name })));
+    if (domainById[keep]) f.domain.value = keep;
+  }
+  refreshDomainOptions();
 
   const PROVIDERS = {
     "udemy.com": "Udemy", "coursera.org": "Coursera", "edx.org": "edX", "youtube.com": "YouTube", "youtu.be": "YouTube",
     "linkedin.com": "LinkedIn Learning", "datacamp.com": "DataCamp", "khanacademy.org": "Khan Academy", "kaggle.com": "Kaggle",
     "pluralsight.com": "Pluralsight", "udacity.com": "Udacity", "deeplearning.ai": "DeepLearning.AI", "skillshare.com": "Skillshare",
-    "github.com": "GitHub", "ocw.mit.edu": "MIT OpenCourseWare", "freecodecamp.org": "freeCodeCamp"
+    "github.com": "GitHub", "ocw.mit.edu": "MIT OpenCourseWare", "cs50.harvard.edu": "Harvard CS50", "freecodecamp.org": "freeCodeCamp"
   };
-  const ACRONYMS = new Set(["ai", "ml", "llm", "llms", "nlp", "sql", "aws", "gpt", "api", "cfa", "frm", "etf", "dcf", "esg", "ui", "ux", "r", "2024", "2025", "2026"]);
+  const ACRONYMS = new Set(["fde", "mcp", "rag", "llmops", "ai", "ml", "llm", "llms", "nlp", "sql", "aws", "gpt", "api", "cfa", "frm", "etf", "dcf", "esg", "ui", "ux", "r", "2024", "2025", "2026"]);
   function parseLink(raw) {
     let u; try { u = new URL(raw.trim()); } catch { return null; }
     const host = u.hostname.replace(/^www\./, "");
@@ -628,6 +909,7 @@
     const markers = ["course", "learn", "specializations", "professional-certificates", "courses", "projects"];
     const i = parts.findIndex((p) => markers.includes(p));
     let slug = i >= 0 && parts[i + 1] ? parts[i + 1] : parts[parts.length - 1] || "";
+    if (/^\d+$/.test(slug) && parts.length > 1) slug = parts.slice(-2).join("-").replace(/s-(\d+)$/, "-$1");
     slug = decodeURIComponent(slug).replace(/\.[a-z0-9]+$/i, "");
     const title = slug.split(/[-_+]+/).filter(Boolean)
       .map((w) => (ACRONYMS.has(w.toLowerCase()) ? w.toUpperCase() : w[0].toUpperCase() + w.slice(1))).join(" ");
@@ -646,12 +928,41 @@
     "corporate finance": ["tvm", "npv", "dcf"], "investing": ["stocks", "diversification", "risk-return"], "stock": ["stocks"],
     "portfolio": ["diversification", "sharpe"], "options": ["derivatives"], "derivatives": ["derivatives"], "bond": ["bonds"],
     "risk": ["risk-return", "volatility"], "fraud": ["fraud-detection"], "credit": ["credit-scoring"], "fintech": ["robo-advisor"],
-    "time series": ["time-series"], "forecast": ["time-series"]
+    "time series": ["time-series"], "forecast": ["time-series"],
+    "agentic": ["agents", "agent-patterns"], "mcp": ["mcp"], "model context protocol": ["mcp"],
+    "tool use": ["tool-use"], "tool calling": ["tool-use"], "function calling": ["tool-use"], "tools": ["tool-use"],
+    "react agent": ["agent-patterns"], "react pattern": ["agent-patterns"], "reason and act": ["agent-patterns"], "reflection": ["agent-patterns"], "planning": ["agent-patterns"], "human-in-the-loop": ["agent-patterns"],
+    "orchestrat": ["orchestration"], "workflow": ["orchestration"], "langgraph": ["orchestration", "agents"], "prompt chaining": ["orchestration"],
+    "multi-agent": ["multi-agent"], "multi agent": ["multi-agent"], "crewai": ["multi-agent"], "autogen": ["multi-agent"],
+    "context engineering": ["context-eng"], "context window": ["context-eng"], "memory": ["context-eng"],
+    "vector": ["vector-db"], "pinecone": ["vector-db"], "chroma": ["vector-db"], "pgvector": ["vector-db"], "faiss": ["vector-db"],
+    "retrieval": ["rag"], "eval": ["evals"], "llm-as-a-judge": ["evals"], "llm as a judge": ["evals"],
+    "guardrail": ["guardrails"], "safety": ["guardrails"], "prompt injection": ["guardrails"],
+    "observability": ["llmops"], "monitoring": ["llmops"], "tracing": ["llmops"], "llmops": ["llmops"], "deploy": ["llmops"],
+    "architect": ["ai-architecture"], "system design": ["ai-architecture"], "forward deployed": ["fde"], "fde": ["fde"],
+    "python": ["python"], "programming": ["python", "functions"], "object-oriented": ["oop"], "oop": ["oop"], "classes": ["oop"],
+    "debug": ["debugging"], "async": ["async"], "concurren": ["async"], "big-o": ["big-o"], "big o": ["big-o"], "complexity": ["big-o"],
+    "data structure": ["arrays-lists", "hash-maps", "trees-graphs"], "algorithm": ["sorting-searching", "big-o"], "leetcode": ["arrays-lists", "hash-maps", "big-o"],
+    "array": ["arrays-lists"], "linked list": ["arrays-lists"], "hash": ["hash-maps"], "dictionar": ["hash-maps"], "tree": ["trees-graphs"], "graph": ["trees-graphs"],
+    "recursi": ["recursion"], "sort": ["sorting-searching"], "binary search": ["sorting-searching"],
+    "computer architecture": ["how-computers-work"], "cpu": ["how-computers-work"], "operating system": ["os-processes"], "process": ["os-processes"],
+    "network": ["networking"], "http": ["networking"], "dns": ["networking"], "sql": ["databases"], "database": ["databases"], "postgres": ["databases"],
+    "linux": ["cli"], "terminal": ["cli"], "command line": ["cli"], "bash": ["cli"], "shell": ["cli"], "git": ["git"], "github": ["git"],
+    "api": ["apis"], "rest": ["apis"], "json": ["apis"], "unit test": ["testing"], "pytest": ["testing"], "system design": ["system-design", "ai-architecture"],
+    "linear algebra": ["linear-algebra"], "matri": ["linear-algebra"], "vectors": ["linear-algebra"], "probability": ["probability-stats"], "statistic": ["probability-stats"],
+    "calculus": ["calculus"], "derivative": ["calculus"], "discrete math": ["discrete-math"], "logic": ["discrete-math"],
+    "customer discovery": ["fde"], "stakeholder": ["fde"], "fine-tun": ["fine-tuning"], "embedding": ["embedding"]
   };
+  const escapeRe = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const KEYWORD_RES = Object.entries(KEYWORDS).map(([k, ids]) => [new RegExp("\\b" + escapeRe(k), "i"), ids]);
   function suggestConcepts(text) {
     const t = text.toLowerCase(), out = new Set();
-    for (const [k, ids] of Object.entries(KEYWORDS)) if (t.includes(k)) ids.forEach((id) => out.add(id));
-    D.concepts.forEach((c) => { const l = c.label.toLowerCase().replace(/\s*\(.*\)/, ""); if (l.length > 3 && t.includes(l)) out.add(c.id); });
+    for (const [re, ids] of KEYWORD_RES) if (re.test(t)) ids.forEach((id) => conceptById[id] && out.add(id));
+    D.concepts.forEach((c) => {
+      const l = c.label.toLowerCase().replace(/\s*\(.*\)/, "");
+      const abbr = (c.label.match(/\(([^)]+)\)/) || [])[1];
+      if ((l.length > 3 && t.includes(l)) || (abbr && new RegExp("\\b" + escapeRe(abbr.toLowerCase()) + "\\b").test(t))) out.add(c.id);
+    });
     return out;
   }
   function guessDomain(ids) {
@@ -669,10 +980,43 @@
   }
   function autoConcepts() {
     if (conceptsTouched || editingId) return;
-    formConcepts = suggestConcepts(f.title.value + " " + f.url.value);
+    formConcepts = suggestConcepts(f.title.value + " " + f.url.value.replace(/^\s*https?:\/\/[^/]+/i, "").replace(/[-_/]+/g, " "));
     const d = guessDomain(formConcepts); if (d) f.domain.value = d;
     renderConceptPicker();
   }
+  const normUrl = (u) => { try { const x = new URL(u.trim()); return (x.hostname.replace(/^www\./, "") + x.pathname).replace(/\/+$/, "").toLowerCase(); } catch { return ""; } };
+  function findKnown(url) {
+    const n = normUrl(url); if (!n) return null;
+    for (const c of D.courses) {
+      for (const m of c.modules || []) if (normUrl(m.url) === n) return { course: c, module: m };
+      if (normUrl(c.url) === n) return { course: c };
+    }
+    return null;
+  }
+  function renderKnownMatch() {
+    const box = $("f-match"), hit = findKnown(f.url.value);
+    box.textContent = ""; box.hidden = !hit; if (!hit) return;
+    const course = allCourses().find((c) => c.id === hit.course.id);
+    if (hit.module) {
+      const m = course.modules.find((x) => x.id === hit.module.id);
+      box.append(
+        h("p", null, h("strong", { text: `${m.title}` }), ` is part of ${course.title}, which is already on your map. Tick it off there instead of adding a separate course:`),
+        h("div", { class: "row" },
+          h("button", { type: "button", class: "btn small primary", text: m.done ? "✓ Done. Undo" : `Mark ${m.title.split(":")[0]} as done`, onclick: () => { setModuleDone(course.id, m.id, !m.done); renderKnownMatch(); } }),
+          h("button", { type: "button", class: "btn small", text: "Show course on map", onclick: () => showCuratedCourse(course.id) })),
+        m.covers.length ? h("p", { class: "meta", text: "Skills this week gives you: " + m.covers.map((id) => conceptById[id].label).join(", ") }) : null,
+        h("p", { class: "meta", text: `${course.modules.filter((x) => x.done).length} of ${course.modules.length} weeks done.` }));
+    } else {
+      box.append(h("p", null, h("strong", { text: course.title }), " is already on your map. Set its status here instead of adding it again:"),
+        h("div", { class: "row" }, statusSelect(course),
+          h("button", { type: "button", class: "btn small", text: "Show course on map", onclick: () => showCuratedCourse(course.id) })));
+    }
+  }
+  function showCuratedCourse(id) {
+    showCourses = true; $("show-courses").checked = true; rebuild(); switchView("graph");
+    requestAnimationFrame(() => select("k:" + id, { center: true }));
+  }
+  f.url.addEventListener("input", renderKnownMatch);
   f.url.addEventListener("input", autoFill);
   f.title.addEventListener("input", autoConcepts);
   f.provider.addEventListener("input", () => delete f.provider.dataset.auto);
@@ -695,9 +1039,122 @@
       });
   }
 
+  // ── Sync from curriculum: match pasted section/lecture titles to the map, offer to add what's missing
+  const SKIP_LINE = /^(introduction|intro|welcome.*|about (this|the) (course|instructor)|conclusion|summary|recap|wrap[- ]?up|course (overview|introduction|summary|intro)|resources?|bonus.*|q ?& ?a|final (words|thoughts)|thank you.*|next steps|quiz.*|assignment.*|practice test.*|downloads?.*|course materials?|congratulations.*|preview|start)$/i;
+  function cleanLine(l) {
+    return l
+      .replace(/^\s*(section|module|week|chapter|part|lecture|lesson|unit|day)\s*\d+\s*[:.\-–—]?\s*/i, "")
+      .replace(/^\s*\d+(\.\d+)*[.)]?\s+/, "")
+      .replace(/\b\d{1,2}:\d{2}(:\d{2})?\b/g, "")
+      .replace(/\b\d+\s*\/\s*\d+\b/g, "")
+      .replace(/\b\d+\s*(min|mins|hr|hrs|hour|hours|lectures?|sec)\b/gi, "")
+      .replace(/\b(preview|play)\b/gi, "")
+      .replace(/[|•·]+/g, " ")
+      .replace(/\s{2,}/g, " ").replace(/^[\s:–—-]+|[\s:–—-]+$/g, "").trim();
+  }
+  const keepLine = (l) => l.length >= 4 && /[a-z]/i.test(l) && !SKIP_LINE.test(l);
+
+  function checkCoverage() {
+    const lines = f.curriculum.value.split(/\n+/).map(cleanLine).filter(keepLine);
+    const matched = new Set(), missing = [], seen = new Set();
+    lines.forEach((l) => {
+      const ids = suggestConcepts(l);
+      if (ids.size) ids.forEach((i) => matched.add(i));
+      else if (!seen.has(l.toLowerCase())) { seen.add(l.toLowerCase()); missing.push(l); }
+    });
+    if (!lines.length) { f.coverage.textContent = ""; f.coverage.append(h("p", { class: "empty", text: "Paste the curriculum first: one section or lecture title per line." })); return; }
+    matched.forEach((id) => formConcepts.add(id));
+    if (matched.size) { conceptsTouched = true; const d = guessDomain(matched); if (d && !editingId) f.domain.value = d; }
+    renderConceptPicker();
+    renderAddNodes(matched, missing);
+  }
+
+  // UI for adding missing nodes: pick (or create) a domain and topic, edit/tick the concept names
+  function renderAddNodes(matched, missing, manual = false) {
+    const box = f.coverage; box.textContent = "";
+    const courseName = f.title.value.trim() || "this course";
+    if (!manual) {
+      box.append(h("p", { class: "cov-ok", text: `✓ ${matched.size} concept${matched.size === 1 ? "" : "s"} already on your map ${matched.size === 1 ? "was" : "were"} ticked above.` }));
+      if (!missing.length) { box.append(h("p", { class: "empty", text: "Nothing missing. Your map covers this course." })); return; }
+      box.append(h("p", { class: "cov-miss", text: `${missing.length} line${missing.length === 1 ? " isn't" : "s aren't"} on your map yet. Untick anything that isn't a real skill (like “Project setup”), rename if needed, then add them:` }));
+    }
+    // target domain / topic
+    const topicCount = {};
+    matched.forEach((id) => { const c = conceptById[id]; if (c.topic) topicCount[c.topic] = (topicCount[c.topic] || 0) + 1; });
+    const bestTopic = Object.entries(topicCount).sort((a, b) => b[1] - a[1])[0]?.[0];
+    const domSel = h("select", { "aria-label": "Domain for new concepts" });
+    D.domains.forEach((d) => domSel.append(h("option", { value: d.id, text: d.name })));
+    domSel.append(h("option", { value: "__new", text: "➕ New domain…" }));
+    domSel.value = bestTopic ? topicById[bestTopic].domain : f.domain.value;
+    const domNew = h("input", { type: "text", placeholder: "New domain name, e.g. Product Management", hidden: true });
+    const topSel = h("select", { "aria-label": "Topic for new concepts" });
+    const topNew = h("input", { type: "text", placeholder: "New topic name", hidden: true });
+    function fillTopics() {
+      topSel.textContent = "";
+      D.topics.filter((t) => t.domain === domSel.value).forEach((t) => topSel.append(h("option", { value: t.id, text: t.name })));
+      topSel.append(h("option", { value: "__new", text: "➕ New topic…" }));
+      if (bestTopic && topicById[bestTopic]?.domain === domSel.value) topSel.value = bestTopic;
+      else topSel.value = "__new";
+      domNew.hidden = domSel.value !== "__new";
+      topNew.hidden = topSel.value !== "__new";
+      if (!topNew.value) topNew.value = courseName.length > 40 ? courseName.slice(0, 40).replace(/\s+\S*$/, "") : courseName;
+    }
+    domSel.addEventListener("change", fillTopics);
+    topSel.addEventListener("change", () => (topNew.hidden = topSel.value !== "__new"));
+    fillTopics();
+
+    const rows = h("div", { class: "cov-rows" });
+    const addRow = (text) => {
+      const cb = h("input", { type: "checkbox", checked: true, "aria-label": "Include" });
+      const inp = h("input", { type: "text", value: text, placeholder: "Concept name" });
+      rows.append(h("label", { class: "cov-row" }, cb, inp));
+    };
+    missing.forEach(addRow);
+    const msg = h("p", { class: "cov-ok" });
+    box.append(
+      h("div", { class: "row cov-target" },
+        h("label", null, "Domain", domSel, domNew),
+        h("label", null, "Topic", topSel, topNew)),
+      rows,
+      h("div", { class: "row" },
+        h("button", { type: "button", class: "btn small", text: "+ Another concept", onclick: () => addRow("") }),
+        h("button", { type: "button", class: "btn small primary", text: "Add to my map", onclick: () => {
+          const picked = [...rows.querySelectorAll(".cov-row")]
+            .filter((r) => r.querySelector("input[type=checkbox]").checked)
+            .map((r) => r.querySelector("input[type=text]").value.trim()).filter(Boolean);
+          if (!picked.length) { msg.textContent = "Tick or type at least one concept."; return; }
+          let domId = domSel.value, topId = topSel.value;
+          if (domId === "__new") {
+            const name = domNew.value.trim(); if (!name) { msg.textContent = "Give the new domain a name."; domNew.focus(); return; }
+            domId = D.domains.find((d) => d.name.toLowerCase() === name.toLowerCase())?.id || addDomain(name, courseName);
+          }
+          if (topId === "__new") {
+            const name = topNew.value.trim(); if (!name) { msg.textContent = "Give the new topic a name."; topNew.focus(); return; }
+            topId = D.topics.find((t) => t.domain === domId && t.name.toLowerCase() === name.toLowerCase())?.id || addTopic(name, domId, courseName);
+          }
+          const ids = picked.map((label) => addConcept(label, topId, courseName));
+          ids.forEach((id) => formConcepts.add(id));
+          conceptsTouched = true;
+          if (!matched.size || f.domain.value === "") f.domain.value = domId;
+          afterCustomChange();
+          f.domain.value = domId;
+          renderConceptPicker();
+          box.textContent = "";
+          box.append(h("p", { class: "cov-ok", text: `★ Added ${ids.length} concept${ids.length === 1 ? "" : "s"} to ${topicById[topId].name} (${domainById[domId].name}) and ticked them for this course. Save the course to link them; they light up on the graph when you mark it Completed.` }));
+        } })),
+      msg);
+  }
+  $("f-check").addEventListener("click", checkCoverage);
+  $("f-add-concept").addEventListener("click", () => {
+    $("curriculum").open = true;
+    renderAddNodes(new Set(), [""], true);
+    f.coverage.querySelector(".cov-row input[type=text]")?.focus();
+  });
+
   function resetForm() {
     form.reset(); delete f.provider.dataset.auto;
     formConcepts = new Set(); conceptsTouched = false; autoTitle = ""; editingId = null;
+    f.coverage.textContent = ""; $("f-match").hidden = true;
     $("form-title").textContent = "Add a course to your learning path";
     $("f-submit").textContent = "Add to my path";
     $("f-cancel").hidden = true;
@@ -707,7 +1164,8 @@
     const e = log.find((x) => x.id === id); if (!e) return;
     editingId = id; conceptsTouched = true;
     f.url.value = e.url; f.title.value = e.title; f.provider.value = e.provider || ""; f.domain.value = e.domain;
-    f.status.value = e.status; f.start.value = e.start || ""; f.end.value = e.end || ""; f.notes.value = e.notes || "";
+    f.status.value = e.status; f.kind.value = e.kind || "course"; f.start.value = e.start || ""; f.end.value = e.end || ""; f.notes.value = e.notes || "";
+    f.curriculum.value = e.curriculum || ""; f.coverage.textContent = "";
     formConcepts = new Set(e.concepts || []);
     $("form-title").textContent = "Edit course";
     $("f-submit").textContent = "Save changes";
@@ -722,8 +1180,8 @@
     const entry = {
       id: editingId || Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       url: f.url.value.trim(), title: f.title.value.trim(), provider: f.provider.value.trim(),
-      domain: f.domain.value, status: f.status.value, start: f.start.value, end: f.end.value,
-      concepts: [...formConcepts], notes: f.notes.value.trim(),
+      domain: f.domain.value, kind: f.kind.value, status: f.status.value, start: f.start.value, end: f.end.value,
+      concepts: [...formConcepts].filter((id) => conceptById[id]), notes: f.notes.value.trim(), curriculum: f.curriculum.value.trim(),
       added: editingId ? (log.find((x) => x.id === editingId)?.added || today()) : today()
     };
     if (entry.status === "completed" && !entry.end) entry.end = today();
@@ -747,7 +1205,7 @@
         h("div", { class: "entry-top" },
           h("div", null,
             h("a", { class: "title", href: safeUrl(e.url), target: "_blank", rel: "noopener noreferrer" }, e.title + " ↗"),
-            h("div", { class: "meta", text: [e.provider, d.name, dates].filter(Boolean).join(" · ") })),
+            h("div", { class: "meta", text: [e.kind === "project" ? "Project" : null, e.provider, d.name, dates].filter(Boolean).join(" · ") })),
           h("div", { class: "entry-actions" },
             h("span", { class: "status " + e.status, text: STATUS_LABEL[e.status] }),
             statusSelect(course))),
@@ -768,7 +1226,7 @@
   $("log-filter").addEventListener("change", renderLog);
 
   $("export").addEventListener("click", () => {
-    const blob = new Blob([JSON.stringify({ version: 1, exported: today(), log, courseStatus, learned: [...manualLearned] }, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify({ version: 2, exported: today(), log, courseStatus, learned: [...manualLearned], levels, focus, custom }, null, 2)], { type: "application/json" });
     const a = h("a", { href: URL.createObjectURL(blob), download: `learning-path-${today()}.json` });
     document.body.append(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
@@ -782,8 +1240,15 @@
       const ids = new Set(incoming.map((x) => x.id));
       log = [...incoming.filter((x) => x && x.id && x.url && x.title), ...log.filter((x) => !ids.has(x.id))];
       if (data.courseStatus) courseStatus = { ...courseStatus, ...data.courseStatus };
-      if (Array.isArray(data.learned)) data.learned.forEach((id) => manualLearned.add(id));
-      save(); rebuild();
+      if (Array.isArray(data.learned)) data.learned.forEach((id) => { manualLearned.add(id); if (!levels[id]) levels[id] = 2; });
+      if (data.levels && typeof data.levels === "object") Object.entries(data.levels).forEach(([id, l]) => { if (l >= 1 && l <= 4) levels[id] = Math.max(levels[id] || 0, l); });
+      if (typeof data.focus === "string") focus = data.focus;
+      if (data.custom) {
+        arr(data.custom.domains).forEach((d) => registerDomain(d) && custom.domains.push(d));
+        arr(data.custom.topics).forEach((t) => registerTopic(t) && custom.topics.push(t));
+        arr(data.custom.concepts).forEach((c) => registerConcept(c) && custom.concepts.push(c));
+      }
+      afterCustomChange();
       alert(`Imported ${incoming.length} course(s).`);
     } catch (err) {
       alert("Couldn't import that file: " + err.message);

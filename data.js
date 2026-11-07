@@ -14,7 +14,9 @@ window.LEARNING_DATA = {
   title: "My Skill Map",
 
   domains: [
-    { id: "ai", name: "Artificial Intelligence", color: "#7c5cff", anchor: [-460, -60],
+    { id: "cs", name: "CS Foundations", color: "#2563eb", anchor: [0, -540],
+      summary: "The base everything else stands on: programming, data structures and algorithms, how computers and networks work, software engineering habits, and the math behind machine learning. Dashed links show which AI and Finance concepts depend on each foundation." },
+    { id: "ai", name: "Artificial Intelligence", color: "#7c5cff", anchor: [-520, -60],
       summary: "Teaching computers to learn patterns from data, from classic machine learning to deep learning and large language models." },
     { id: "fin", name: "Finance", color: "#0f9f6e", anchor: [460, -60],
       summary: "How money, markets and companies work: valuing assets, managing risk, and building portfolios." },
@@ -23,47 +25,108 @@ window.LEARNING_DATA = {
   ],
 
   topics: [
+    { id: "cs-prog", domain: "cs", name: "Programming Fundamentals" },
+    { id: "cs-dsa", domain: "cs", name: "Data Structures & Algorithms" },
+    { id: "cs-systems", domain: "cs", name: "Computer Systems & Networks" },
+    { id: "cs-swe", domain: "cs", name: "Software Engineering" },
+    { id: "cs-math", domain: "cs", name: "Math for CS & ML" },
     { id: "ai-found", domain: "ai", name: "ML Foundations" },
     { id: "ai-deep", domain: "ai", name: "Deep Learning" },
     { id: "ai-llm", domain: "ai", name: "LLMs & GenAI" },
+    { id: "ai-agentic", domain: "ai", name: "Agentic AI & AI Engineering" },
     { id: "fin-core", domain: "fin", name: "Core Finance" },
     { id: "fin-mkt", domain: "fin", name: "Markets & Investing" },
     { id: "fin-quant", domain: "fin", name: "Quantitative Finance" }
   ],
 
   concepts: [
+    // ── CS · Programming Fundamentals (start here)
+    { id: "python", topic: "cs-prog", label: "Python programming", definition: "The main language of AI and data work. Variables, types, loops, conditionals, and reading/writing files are the first things to get comfortable with." },
+    { id: "conditionals-loops", topic: "cs-prog", label: "Conditionals, loops & Boolean logic", definition: "The building blocks of every program: making decisions (if / else with true-or-false expressions) and repeating steps (for / while loops).", related: ["python"] },
+    { id: "c-lang", topic: "cs-prog", label: "C & compiled languages", definition: "A low-level language that is compiled to machine code before it runs. Learning it shows what higher-level languages like Python do for you.", related: ["memory-pointers"] },
+    { id: "functions", topic: "cs-prog", label: "Functions & abstraction", definition: "Packaging logic into reusable named pieces with inputs and outputs, so big problems become small, testable parts.", related: ["python"] },
+    { id: "oop", topic: "cs-prog", label: "Object-oriented programming", definition: "Organizing code around objects (classes) that bundle data with the functions that act on it. Most libraries you use, from pandas to SDKs, are built this way.", related: ["functions"] },
+    { id: "debugging", topic: "cs-prog", label: "Debugging", definition: "Systematically finding why code doesn't work: reading error messages and stack traces, printing or stepping through values, and forming and testing hypotheses.", related: ["python"] },
+    { id: "async", topic: "cs-prog", label: "Concurrency & async", definition: "Doing several things at once or without waiting, e.g. calling many APIs in parallel. Essential for fast agents and data pipelines.", related: ["functions"] },
+
+    // ── CS · Data Structures & Algorithms
+    { id: "algorithms-pseudocode", topic: "cs-dsa", label: "Algorithms & pseudocode", definition: "An algorithm is a precise, step-by-step procedure for solving a problem; pseudocode writes it in plain language before you write real code.", related: ["sorting-searching"] },
+    { id: "big-o", topic: "cs-dsa", label: "Big-O complexity", definition: "How an algorithm's time or memory grows as the input grows: O(1), O(log n), O(n), O(n²). It tells you whether code will still be fast with a million rows." },
+    { id: "arrays-lists", topic: "cs-dsa", label: "Arrays & lists", definition: "Ordered collections accessed by position. The basis of vectors, matrices and dataframes.", related: ["big-o"] },
+    { id: "hash-maps", topic: "cs-dsa", label: "Hash maps (dictionaries)", definition: "Key → value lookups in roughly constant time. Python's dict, JSON objects and caches all work this way.", related: ["big-o"] },
+    { id: "trees-graphs", topic: "cs-dsa", label: "Trees & graphs", definition: "Structures of nodes and connections: file systems, org charts, social networks, decision trees, and knowledge graphs like this one.", related: ["recursion"] },
+    { id: "recursion", topic: "cs-dsa", label: "Recursion", definition: "A function that solves a problem by calling itself on smaller versions of it, which is natural for trees and divide-and-conquer." },
+    { id: "sorting-searching", topic: "cs-dsa", label: "Sorting & searching", definition: "Classic algorithms such as binary search, merge sort and quicksort. Learning them teaches how to reason about correctness and speed.", related: ["big-o", "arrays-lists"] },
+
+    // ── CS · Computer Systems & Networks
+    { id: "how-computers-work", topic: "cs-systems", label: "How computers work", definition: "CPU, memory, storage and the layers between hardware and your code. It explains why some things are fast and others slow (e.g. GPUs for AI)." },
+    { id: "binary", topic: "cs-systems", label: "Binary & data representation", definition: "Computers store everything as bits (0s and 1s). Numbers, text (ASCII / Unicode), colors (RGB), images and sound are all patterns of bits.", related: ["how-computers-work"] },
+    { id: "memory-pointers", topic: "cs-systems", label: "Memory & pointers", definition: "How programs store data in memory at addresses, how pointers refer to those addresses, and how memory is allocated and freed.", related: ["how-computers-work"] },
+    { id: "os-processes", topic: "cs-systems", label: "Operating systems & processes", definition: "How the OS runs programs as processes and threads, manages memory and files, and isolates programs from each other.", related: ["how-computers-work"] },
+    { id: "networking", topic: "cs-systems", label: "Networking & HTTP", definition: "How machines talk: IP addresses, DNS, TCP, and HTTP requests/responses with status codes and headers. Every API call and web app relies on it." },
+    { id: "databases", topic: "cs-systems", label: "Databases & SQL", definition: "Storing and querying structured data reliably: tables, keys, indexes, joins and transactions." },
+    { id: "security-basics", topic: "cs-systems", label: "Security basics", definition: "Authentication vs. authorization, encryption (HTTPS), secrets management, and common attacks like injection. Matters for anything you deploy.", related: ["networking"] },
+
+    // ── CS · Software Engineering
+    { id: "cli", topic: "cs-swe", label: "Command line & Linux", definition: "Using the terminal to navigate files, run programs, and automate tasks. Servers, cloud machines and most dev tools assume it." },
+    { id: "git", topic: "cs-swe", label: "Git & version control", definition: "Tracking changes to code, branching, and collaborating through pull requests on GitHub (exactly how this skill map is built).", related: ["cli"] },
+    { id: "apis", topic: "cs-swe", label: "APIs & JSON", definition: "How programs offer services to each other, usually REST over HTTP with JSON data. Calling LLM APIs and building tools for agents are both API work.", related: ["networking"] },
+    { id: "web-basics", topic: "cs-swe", label: "Web basics (HTML, CSS, JavaScript)", definition: "How web pages are built: HTML for structure, CSS for style, JavaScript for behavior, plus a server (e.g. Flask) that responds to browser requests.", related: ["networking", "apis"] },
+    { id: "testing", topic: "cs-swe", label: "Testing", definition: "Writing automated checks (unit and integration tests) so you know code works and stays working after changes." },
+    { id: "system-design", topic: "cs-swe", label: "System design basics", definition: "Combining services, databases, caches and queues into a system that scales and stays reliable, and reasoning about the trade-offs.", related: ["databases", "apis"] },
+
+    // ── CS · Math for CS & ML
+    { id: "linear-algebra", topic: "cs-math", label: "Linear algebra", definition: "Vectors, matrices and their operations. Neural networks and embeddings are, at heart, big matrix multiplications.", related: ["arrays-lists"] },
+    { id: "probability-stats", topic: "cs-math", label: "Probability & statistics", definition: "Reasoning about uncertainty: distributions, mean and variance, correlation, hypothesis tests. The language of both ML and finance." },
+    { id: "calculus", topic: "cs-math", label: "Calculus (derivatives)", definition: "How a quantity changes as its inputs change. Derivatives and gradients are what models use to learn." },
+    { id: "discrete-math", topic: "cs-math", label: "Discrete math & logic", definition: "Sets, logic, counting, proofs and graphs: the math of algorithms and data structures.", related: ["trees-graphs"] },
+
     // ── AI · ML Foundations
     { id: "supervised", topic: "ai-found", label: "Supervised learning", definition: "Training a model on labeled examples (input → known answer) so it can predict answers for new inputs, e.g. spam detection or price prediction." },
     { id: "unsupervised", topic: "ai-found", label: "Unsupervised learning", definition: "Finding structure in unlabeled data, such as clustering similar customers or flagging unusual points (anomaly detection)." },
-    { id: "regression", topic: "ai-found", label: "Regression", definition: "Predicting a continuous number (house price, next-month return). Linear regression fits a straight line through the data.", related: ["supervised"] },
+    { id: "regression", topic: "ai-found", label: "Regression", definition: "Predicting a continuous number (house price, next-month return). Linear regression fits a straight line through the data.", related: ["supervised", "probability-stats"] },
     { id: "classification", topic: "ai-found", label: "Classification", definition: "Predicting a category (fraud / not fraud, default / no default).", related: ["supervised"] },
     { id: "overfitting", topic: "ai-found", label: "Overfitting", definition: "When a model memorizes training data, noise included, and fails on new data. Countered with more data, regularization, cross-validation or simpler models." },
-    { id: "gradient-descent", topic: "ai-found", label: "Gradient descent", definition: "The optimization method most models learn with: repeatedly nudging parameters in the direction that lowers the error (loss)." },
-    { id: "precision-recall", topic: "ai-found", label: "Precision / Recall", definition: "Precision: of the items predicted positive, how many really are. Recall: of all real positives, how many were found.", related: ["classification"] },
-    { id: "feature-eng", topic: "ai-found", label: "Feature engineering", definition: "Turning raw data into informative model inputs, e.g. ratios, moving averages or counts." },
+    { id: "gradient-descent", topic: "ai-found", label: "Gradient descent", definition: "The optimization method most models learn with: repeatedly nudging parameters in the direction that lowers the error (loss).", related: ["calculus"] },
+    { id: "precision-recall", topic: "ai-found", label: "Precision / Recall", definition: "Precision: of the items predicted positive, how many really are. Recall: of all real positives, how many were found.", related: ["classification", "probability-stats"] },
+    { id: "feature-eng", topic: "ai-found", label: "Feature engineering", definition: "Turning raw data into informative model inputs, e.g. ratios, moving averages or counts.", related: ["python"] },
 
     // ── AI · Deep Learning
-    { id: "neural-net", topic: "ai-deep", label: "Neural network", definition: "Layers of simple connected units whose weights are learned from data; the foundation of deep learning.", related: ["gradient-descent"] },
-    { id: "backprop", topic: "ai-deep", label: "Backpropagation", definition: "The algorithm that computes how much each weight contributed to the error, so gradient descent can update it.", related: ["neural-net", "gradient-descent"] },
+    { id: "neural-net", topic: "ai-deep", label: "Neural network", definition: "Layers of simple connected units whose weights are learned from data; the foundation of deep learning.", related: ["gradient-descent", "linear-algebra", "calculus"] },
+    { id: "backprop", topic: "ai-deep", label: "Backpropagation", definition: "The algorithm that computes how much each weight contributed to the error, so gradient descent can update it.", related: ["neural-net", "gradient-descent", "calculus"] },
     { id: "cnn", topic: "ai-deep", label: "CNN", definition: "Convolutional Neural Network, specialized for grid data like images; it learns local patterns such as edges and shapes.", related: ["neural-net"] },
     { id: "sequence-models", topic: "ai-deep", label: "Sequence models (RNN/LSTM)", definition: "Networks that process ordered data step by step while keeping a memory of what came before: text, audio, price series.", related: ["neural-net"] },
     { id: "transformer", topic: "ai-deep", label: "Transformer", definition: "An architecture built on attention, which lets every token weigh every other token. It powers modern LLMs.", related: ["sequence-models"] },
     { id: "transfer-learning", topic: "ai-deep", label: "Transfer learning", definition: "Reusing a model trained on a big dataset as the starting point for a new, smaller task." },
 
     // ── AI · LLMs
-    { id: "tokenization", topic: "ai-llm", label: "Tokenization", definition: "Splitting text into tokens (word pieces) that a language model reads and predicts one at a time.", related: ["transformer"] },
-    { id: "embedding", topic: "ai-llm", label: "Embedding", definition: "A vector of numbers representing an item (word, document, customer) so that similar items sit close together." },
+    { id: "tokenization", topic: "ai-llm", label: "Tokenization", definition: "Splitting text into tokens (word pieces) that a language model reads and predicts one at a time.", related: ["transformer", "hash-maps"] },
+    { id: "embedding", topic: "ai-llm", label: "Embedding", definition: "A vector of numbers representing an item (word, document, customer) so that similar items sit close together.", related: ["linear-algebra"] },
     { id: "fine-tuning", topic: "ai-llm", label: "Fine-tuning", definition: "Continuing to train a pre-trained model on task-specific data to adapt it to your use case.", related: ["transfer-learning"] },
     { id: "prompting", topic: "ai-llm", label: "Prompt engineering", definition: "Designing instructions, context and examples so an LLM produces reliable, useful output." },
     { id: "rag", topic: "ai-llm", label: "RAG", definition: "Retrieval-Augmented Generation: fetching relevant documents at query time and giving them to the LLM so answers are grounded in your data.", related: ["embedding", "prompting"] },
-    { id: "agents", topic: "ai-llm", label: "AI agents", definition: "LLM systems that plan and take actions with tools (search, code, APIs) in a loop to complete multi-step tasks.", related: ["prompting"] },
+
+    // ── AI · Agentic AI & AI Engineering
+    { id: "agents", topic: "ai-agentic", label: "AI agents", definition: "LLM systems that plan and take actions with tools (search, code, APIs) in a loop to complete multi-step tasks.", related: ["prompting"] },
+    { id: "tool-use", topic: "ai-agentic", label: "Tool use / function calling", definition: "Letting a model call functions you define (search, database, APIs) by returning structured arguments; your code runs the tool and feeds the result back.", related: ["agents", "apis"] },
+    { id: "mcp", topic: "ai-agentic", label: "Model Context Protocol (MCP)", definition: "An open standard for connecting AI apps to tools and data. MCP servers expose tools, resources and prompts that any MCP-compatible client or agent can use, instead of writing a custom integration for each.", related: ["tool-use", "agents", "apis", "networking"] },
+    { id: "agent-patterns", topic: "ai-agentic", label: "Agent design patterns", definition: "Reusable ways to structure agents: the ReAct loop (reason → act → observe), planner–executor, routing, reflection / self-critique, and human-in-the-loop checkpoints.", related: ["agents"] },
+    { id: "orchestration", topic: "ai-agentic", label: "Workflows & orchestration", definition: "Chaining LLM calls and tools into reliable pipelines (prompt chaining, routing, parallel steps), often with frameworks such as LangGraph. Workflows follow fixed paths; agents choose their own.", related: ["agent-patterns", "async"] },
+    { id: "multi-agent", topic: "ai-agentic", label: "Multi-agent systems", definition: "Several specialized agents (e.g. researcher, coder, reviewer) coordinated by an orchestrator or talking to each other to split up a large task.", related: ["orchestration", "agents"] },
+    { id: "context-eng", topic: "ai-agentic", label: "Context engineering & memory", definition: "Deciding what goes into the model's limited context window: instructions, retrieved documents, tool results, conversation history, and long-term memory stored between sessions.", related: ["rag", "prompting"] },
+    { id: "vector-db", topic: "ai-agentic", label: "Vector databases", definition: "Databases that store embeddings and find the most similar ones fast (e.g. pgvector, Pinecone, Chroma). The retrieval layer behind RAG and agent memory.", related: ["embedding", "rag", "databases"] },
+    { id: "evals", topic: "ai-agentic", label: "LLM evaluation (evals)", definition: "Systematically testing AI outputs with test sets, graders (code, human or LLM-as-judge) and metrics, so you can tell whether a change made the system better.", related: ["precision-recall", "testing"] },
+    { id: "guardrails", topic: "ai-agentic", label: "Guardrails & AI safety", definition: "Controls that keep AI systems safe and on-task: input/output filtering, permissions on tools, prompt-injection defenses, and approval steps for risky actions.", related: ["tool-use", "security-basics"] },
+    { id: "llmops", topic: "ai-agentic", label: "LLMOps & observability", definition: "Running AI apps in production: deployment, tracing each LLM and tool call, monitoring cost, latency and quality, and versioning prompts and models.", related: ["evals", "git", "testing"] },
+    { id: "ai-architecture", topic: "ai-agentic", label: "AI solution architecture", definition: "Designing the end-to-end system around a model: choosing models, data and retrieval, tools/MCP integrations, security, scaling and cost, and how it fits the customer's existing stack.", related: ["llmops", "rag", "mcp", "guardrails", "system-design"] },
+    { id: "fde", topic: "ai-agentic", label: "Forward deployed engineering", definition: "Engineers who embed with customers to discover their problems, then design, build and deploy AI solutions in the customer's real environment, mixing solution architecture, hands-on coding and stakeholder work.", related: ["ai-architecture"] },
 
     // ── Finance · Core
     { id: "tvm", topic: "fin-core", label: "Time value of money", definition: "A dollar today is worth more than a dollar tomorrow, because it can be invested. This is the basis of discounting." },
     { id: "npv", topic: "fin-core", label: "NPV", definition: "Net Present Value: the sum of a project's future cash flows discounted to today, minus its cost. Positive NPV creates value.", related: ["tvm"] },
     { id: "statements", topic: "fin-core", label: "Financial statements", definition: "Income statement (profit), balance sheet (what a firm owns and owes) and cash-flow statement (cash in and out)." },
     { id: "dcf", topic: "fin-core", label: "DCF valuation", definition: "Discounted Cash Flow: valuing a company as the present value of the cash it will generate in the future.", related: ["npv", "statements"] },
-    { id: "risk-return", topic: "fin-core", label: "Risk & return", definition: "Higher expected returns usually come with higher risk (uncertainty); investors demand compensation for bearing risk." },
+    { id: "risk-return", topic: "fin-core", label: "Risk & return", definition: "Higher expected returns usually come with higher risk (uncertainty); investors demand compensation for bearing risk.", related: ["probability-stats"] },
 
     // ── Finance · Markets
     { id: "stocks", topic: "fin-mkt", label: "Stocks (equity)", definition: "Shares of ownership in a company. Holders gain from price growth and dividends." },
@@ -75,10 +138,10 @@ window.LEARNING_DATA = {
 
     // ── Finance · Quant
     { id: "time-series", topic: "fin-quant", label: "Time series", definition: "Data indexed by time (daily prices, returns). It needs special care: trends, seasonality, and no peeking into the future.", related: ["sequence-models", "regression"] },
-    { id: "volatility", topic: "fin-quant", label: "Volatility", definition: "How much returns swing, usually measured as the standard deviation of returns. The most common measure of risk.", related: ["risk-return"] },
+    { id: "volatility", topic: "fin-quant", label: "Volatility", definition: "How much returns swing, usually measured as the standard deviation of returns. The most common measure of risk.", related: ["risk-return", "probability-stats"] },
     { id: "sharpe", topic: "fin-quant", label: "Sharpe ratio", definition: "Excess return per unit of volatility: (return − risk-free rate) ÷ volatility. Higher is better risk-adjusted performance.", related: ["volatility"] },
     { id: "capm", topic: "fin-quant", label: "CAPM & beta", definition: "Capital Asset Pricing Model: expected return = risk-free rate + beta × market premium. Beta is estimated with a regression on market returns.", related: ["regression", "risk-return"] },
-    { id: "monte-carlo", topic: "fin-quant", label: "Monte Carlo simulation", definition: "Simulating thousands of random future scenarios to estimate the range of outcomes, e.g. for pricing options or planning retirement.", related: ["derivatives"] },
+    { id: "monte-carlo", topic: "fin-quant", label: "Monte Carlo simulation", definition: "Simulating thousands of random future scenarios to estimate the range of outcomes, e.g. for pricing options or planning retirement.", related: ["derivatives", "probability-stats"] },
     { id: "backtesting", topic: "fin-quant", label: "Backtesting", definition: "Testing a trading strategy on historical data. It is easy to fool yourself: watch for overfitting and look-ahead bias.", related: ["overfitting", "time-series"] },
 
     // ── AI × Finance (bridge)
@@ -88,10 +151,48 @@ window.LEARNING_DATA = {
     { id: "sentiment", domain: "aifin", label: "Financial sentiment (NLP)", definition: "Using language models to read news, earnings calls and filings and turn their tone into trading or risk signals.", related: ["transformer", "embedding", "stocks"] },
     { id: "robo-advisor", domain: "aifin", label: "Robo-advisors", definition: "Automated platforms that build and rebalance diversified portfolios from a client's goals and risk tolerance.", related: ["diversification", "etf", "agents"] },
     { id: "risk-modeling", domain: "aifin", label: "ML risk modeling", definition: "Using machine learning to forecast volatility, losses and stress scenarios beyond classic statistical models.", related: ["volatility", "monte-carlo", "neural-net", "feature-eng"] },
-    { id: "fin-llm", domain: "aifin", label: "LLMs for finance", definition: "Applying LLMs and RAG to research reports, filings and customer service, such as summarizing a 10-K or answering questions over it.", related: ["rag", "statements", "agents"] }
+    { id: "fin-llm", domain: "aifin", label: "LLMs for finance", definition: "Applying LLMs and RAG to research reports, filings and customer service, such as summarizing a 10-K or answering questions over it.", related: ["rag", "statements", "agents", "mcp"] }
   ],
 
   courses: [
+    // CS Foundations (roughly in this order)
+    { id: "c-cs50p", title: "CS50's Introduction to Programming with Python", provider: "Harvard", url: "https://cs50.harvard.edu/python/", cost: "Free", level: "Beginner",
+      covers: ["python", "functions", "oop", "debugging", "testing"] },
+    { id: "c-cs50x", title: "CS50x: Introduction to Computer Science", provider: "Harvard", url: "https://cs50.harvard.edu/x/", cost: "Free", level: "Beginner",
+      covers: ["how-computers-work"],
+      // Track week by week: each module lights up its own concepts when done.
+      modules: [
+        { id: "w0", title: "Week 0: Scratch", url: "https://cs50.harvard.edu/x/weeks/0/", covers: ["binary", "algorithms-pseudocode", "conditionals-loops", "functions", "sorting-searching"] },
+        { id: "w1", title: "Week 1: C", url: "https://cs50.harvard.edu/x/weeks/1/", covers: ["c-lang", "conditionals-loops", "cli"] },
+        { id: "w2", title: "Week 2: Arrays", url: "https://cs50.harvard.edu/x/weeks/2/", covers: ["arrays-lists", "debugging", "c-lang"] },
+        { id: "w3", title: "Week 3: Algorithms", url: "https://cs50.harvard.edu/x/weeks/3/", covers: ["sorting-searching", "big-o", "recursion"] },
+        { id: "w4", title: "Week 4: Memory", url: "https://cs50.harvard.edu/x/weeks/4/", covers: ["memory-pointers", "how-computers-work"] },
+        { id: "w5", title: "Week 5: Data Structures", url: "https://cs50.harvard.edu/x/weeks/5/", covers: ["arrays-lists", "hash-maps", "trees-graphs"] },
+        { id: "w6", title: "Week 6: Python", url: "https://cs50.harvard.edu/x/weeks/6/", covers: ["python", "functions"] },
+        { id: "w7", title: "Week 7: SQL", url: "https://cs50.harvard.edu/x/weeks/7/", covers: ["databases"] },
+        { id: "w8", title: "Week 8: HTML, CSS, JavaScript", url: "https://cs50.harvard.edu/x/weeks/8/", covers: ["networking", "web-basics"] },
+        { id: "w9", title: "Week 9: Flask", url: "https://cs50.harvard.edu/x/weeks/9/", covers: ["web-basics", "apis"] },
+        { id: "project", title: "Final Project", url: "https://cs50.harvard.edu/x/project/", covers: [] }
+      ] },
+    { id: "c-missing", title: "The Missing Semester of Your CS Education", provider: "MIT", url: "https://missing.csail.mit.edu/", cost: "Free", level: "Beginner",
+      covers: ["cli", "git", "debugging", "security-basics"] },
+    { id: "c-cs50sql", title: "CS50's Introduction to Databases with SQL", provider: "Harvard", url: "https://cs50.harvard.edu/sql/", cost: "Free", level: "Beginner",
+      covers: ["databases"] },
+    { id: "c-3b1b", title: "Essence of Linear Algebra & Calculus (videos)", provider: "3Blue1Brown", url: "https://www.3blue1brown.com/topics/linear-algebra", cost: "Free", level: "Beginner",
+      covers: ["linear-algebra", "calculus"] },
+    { id: "c-math-ml", title: "Mathematics for Machine Learning Specialization", provider: "Coursera / Imperial College London", url: "https://www.coursera.org/specializations/mathematics-machine-learning", cost: "Free to audit", level: "Intermediate",
+      covers: ["linear-algebra", "calculus", "probability-stats"] },
+    { id: "c-stat110", title: "Stat 110: Probability", provider: "Harvard", url: "https://projects.iq.harvard.edu/stat110", cost: "Free", level: "Intermediate",
+      covers: ["probability-stats", "discrete-math"] },
+    { id: "c-neetcode", title: "NeetCode Roadmap (data structures & algorithms practice)", provider: "NeetCode", url: "https://neetcode.io/roadmap", cost: "Free", level: "Intermediate",
+      covers: ["arrays-lists", "hash-maps", "trees-graphs", "recursion", "sorting-searching", "big-o"] },
+    { id: "c-mit6006", title: "Introduction to Algorithms (6.006)", provider: "MIT OpenCourseWare", url: "https://ocw.mit.edu/courses/6-006-introduction-to-algorithms-spring-2020/", cost: "Free", level: "Advanced",
+      covers: ["big-o", "sorting-searching", "trees-graphs", "recursion", "hash-maps", "discrete-math"] },
+    { id: "c-nand2tetris", title: "Nand2Tetris: Build a Modern Computer from First Principles", provider: "nand2tetris.org", url: "https://www.nand2tetris.org/", cost: "Free", level: "Advanced",
+      covers: ["how-computers-work", "os-processes"] },
+    { id: "c-tycs", title: "Teach Yourself Computer Science (full self-study guide)", provider: "teachyourselfcs.com", url: "https://teachyourselfcs.com/", cost: "Free", level: "Advanced",
+      covers: ["how-computers-work", "os-processes", "networking", "databases", "discrete-math", "system-design", "big-o"] },
+
     // AI
     { id: "c-ml-ng", title: "Machine Learning Specialization (Andrew Ng)", provider: "Coursera / DeepLearning.AI", url: "https://www.coursera.org/specializations/machine-learning-introduction", cost: "Free to audit", level: "Beginner",
       covers: ["supervised", "unsupervised", "regression", "classification", "overfitting", "gradient-descent", "precision-recall", "neural-net"] },
@@ -106,7 +207,13 @@ window.LEARNING_DATA = {
     { id: "c-hf", title: "Hugging Face LLM Course", provider: "Hugging Face", url: "https://huggingface.co/learn", cost: "Free", level: "Advanced",
       covers: ["transformer", "tokenization", "fine-tuning", "embedding", "agents"] },
     { id: "c-anthropic", title: "Anthropic Courses (prompting, RAG, tool use)", provider: "Anthropic on GitHub", url: "https://github.com/anthropics/courses", cost: "Free", level: "Intermediate",
-      covers: ["prompting", "rag", "agents"] },
+      covers: ["prompting", "rag", "agents", "tool-use"] },
+    { id: "c-mcp-docs", title: "Model Context Protocol: official docs & tutorials", provider: "modelcontextprotocol.io", url: "https://modelcontextprotocol.io/", cost: "Free", level: "Beginner",
+      covers: ["mcp", "tool-use"] },
+    { id: "c-mcp-dlai", title: "MCP: Build Rich-Context AI Apps with Anthropic", provider: "DeepLearning.AI", url: "https://www.deeplearning.ai/short-courses/mcp-build-rich-context-ai-apps-with-anthropic/", cost: "Free", level: "Intermediate",
+      covers: ["mcp", "tool-use", "agents"] },
+    { id: "c-effective-agents", title: "Building Effective Agents (guide)", provider: "Anthropic", url: "https://www.anthropic.com/engineering/building-effective-agents", cost: "Free", level: "Intermediate",
+      covers: ["agents", "agent-patterns", "orchestration", "tool-use", "multi-agent"] },
 
     // Finance
     { id: "c-khan", title: "Khan Academy: Finance & Capital Markets", provider: "Khan Academy", url: "https://www.khanacademy.org/economics-finance-domain/core-finance", cost: "Free", level: "Beginner",

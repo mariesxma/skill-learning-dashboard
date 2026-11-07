@@ -118,7 +118,9 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
 .lg-domain { width: 16px; height: 16px; background: var(--muted); border-color: var(--muted); }
 .lg-topic { background: var(--surface); border-width: 3px; }
 .lg-concept { background: var(--surface); width: 10px; height: 10px; }
-.lg-learned { background: #0f9f6e; border-color: #0f9f6e; box-shadow: 0 0 0 3px rgba(15,159,110,.25); }
+.lg-l1 { background: color-mix(in srgb, var(--muted) 22%, var(--surface)); }
+.lg-l2 { background: color-mix(in srgb, var(--muted) 50%, var(--surface)); }
+.lg-l3 { background: var(--muted); box-shadow: 0 0 0 3px color-mix(in srgb, var(--muted) 25%, transparent); }
 .lg-course { border-radius: 3px; transform: rotate(45deg); width: 9px; height: 9px; background: var(--muted); }
 .lg-related { width: 18px; height: 0; border-radius: 0; border: 0; border-top: 2px dashed var(--related-line); }
 .hint { position: absolute; right: 12px; bottom: 12px; margin: 0; font-size: 12px; color: var(--muted); }
@@ -215,3 +217,67 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
   .hint { display: none; }
   .legend { bottom: 8px; left: 8px; gap: 6px; font-size: 11px; }
 }
+
+/* ── Curriculum sync & your own nodes ── */
+#f-add-concept { margin-top: 8px; }
+.curriculum { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+.curriculum summary { cursor: pointer; font-weight: 700; }
+.curriculum summary small { font-weight: 400; color: var(--muted); }
+.curriculum .help { color: var(--muted); font-size: 13px; margin: 8px 0; }
+.curriculum textarea { width: 100%; margin-bottom: 8px; }
+.coverage { display: grid; gap: 8px; margin-top: 8px; }
+.coverage p { margin: 0; }
+.cov-ok { color: #0f9f6e; font-weight: 600; }
+.cov-miss { color: var(--text); }
+.cov-target label { display: grid; gap: 4px; font-size: 12px; font-weight: 600; color: var(--muted); flex: 1 1 200px; }
+.cov-rows { display: grid; gap: 6px; max-height: 280px; overflow-y: auto; }
+.cov-row { display: flex !important; align-items: center; gap: 8px; }
+.cov-row input[type=text] { flex: 1; }
+.custom-note { color: var(--muted); font-size: 13px; }
+.custom-edit { display: grid; gap: 8px; }
+.custom-edit input, .custom-edit textarea { width: 100%; }
+
+/* ── Course modules (e.g. CS50x weeks) ── */
+.modules { margin-top: 8px; font-size: 13px; }
+.modules summary { cursor: pointer; display: flex; align-items: center; gap: 10px; font-weight: 600; color: var(--muted); }
+.progress.mini { flex: 1; max-width: 120px; height: 6px; display: block; }
+.module { display: grid; grid-template-columns: auto 1fr; gap: 0 8px; align-items: start; padding: 5px 0; border-top: 1px solid var(--border); cursor: pointer; }
+.module:first-of-type { border-top: 0; }
+.module input { margin-top: 3px; }
+.module a { font-weight: 600; text-decoration: none; }
+.module.done a { color: #0f9f6e; }
+.module-skills { grid-column: 2; color: var(--muted); font-size: 12px; }
+.match { border: 1px solid var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--surface)); border-radius: 10px; padding: 10px 12px; display: grid; gap: 8px; }
+.match p { margin: 0; }
+.match .meta { color: var(--muted); font-size: 12px; }
+
+/* ── Depth levels ── */
+.node text.sub { font-size: 11px; font-weight: 500; fill: var(--muted); }
+.stat-sub { color: var(--muted); }
+.chip .lv { font-size: 10px; font-weight: 800; color: var(--c); border: 1px solid var(--c); border-radius: 4px; padding: 0 3px; line-height: 14px; }
+.level-box { margin-top: 14px; }
+.levels { display: flex; flex-wrap: wrap; gap: 4px; }
+.lvl { font: inherit; font-size: 12px; border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 8px; padding: 5px 8px; cursor: pointer; }
+.lvl b { color: var(--c); }
+.lvl.filled { background: color-mix(in srgb, var(--c) 14%, var(--surface)); border-color: color-mix(in srgb, var(--c) 45%, var(--border)); }
+.lvl.on { background: var(--c); border-color: var(--c); color: #fff; font-weight: 700; }
+.lvl.on b { color: #fff; }
+.lvl:disabled { cursor: default; opacity: .75; }
+.lvl-help { font-size: 13px; margin: 8px 0 4px; }
+.lvl-via { color: var(--muted); font-size: 12px; margin: 0 0 4px; }
+.lvl-next { font-size: 13px; color: var(--accent); font-weight: 600; margin: 4px 0 0; }
+.suggest { border: 1px solid var(--border); border-radius: 12px; padding: 8px 10px; margin-bottom: 8px; display: grid; gap: 4px; }
+.suggest-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.suggest-top .chip { margin: 0; }
+.suggest-kind { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; border-radius: 4px; padding: 1px 6px; }
+.suggest-kind.deepen { background: var(--accent); color: #fff; }
+.suggest-kind.broaden { background: var(--surface-2); color: var(--muted); }
+.suggest .meta { color: var(--muted); font-size: 12px; margin: 0; }
+.suggest-link { font-size: 12px; font-weight: 600; text-decoration: none; }
+.bd { margin-bottom: 10px; }
+.bd-name { font-size: 12px; font-weight: 700; margin-bottom: 4px; }
+.bd-row { display: grid; grid-template-columns: 38px 1fr 36px; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+.bd-pct { text-align: right; font-variant-numeric: tabular-nums; }
+.by-level { margin-bottom: 8px; }
+.by-level-head { font-size: 13px; margin-bottom: 4px; }
+.panel select { max-width: 100%; }
