@@ -36,6 +36,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html, body { margin: 0; height: 100%; }
 body {
   background: var(--bg);
@@ -281,3 +282,54 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
 .by-level { margin-bottom: 8px; }
 .by-level-head { font-size: 13px; margin-bottom: 4px; }
 .panel select { max-width: 100%; }
+
+/* ── My courses (simple dashboard) ── */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+body[data-view="log"] .stats { display: none; }
+.log-wrap { max-width: 860px; }
+.dash-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow); }
+.tile-value { font-size: 28px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.tile-label { font-size: 13px; font-weight: 600; color: var(--muted); }
+.tile-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.quick-add { display: grid; gap: 10px; }
+.quick-add #q-url { width: 100%; font-size: 15px; padding: 11px 14px; }
+.q-preview { display: grid; gap: 10px; }
+.q-preview label { display: grid; gap: 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.q-preview input { width: 100%; }
+.q-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.q-preview .meta, .now-card .meta, .crow .meta { color: var(--muted); font-size: 12px; margin: 0; }
+.btn.link { border: 0; background: none; box-shadow: none; color: var(--accent); padding-left: 4px; padding-right: 4px; }
+.sec-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px; }
+.now-list { display: grid; gap: 12px; }
+.now-card { border: 1px solid var(--border); border-left: 4px solid var(--c); border-radius: 12px; padding: 12px 14px; display: grid; gap: 8px; }
+.now-top { display: flex; justify-content: space-between; gap: 12px; align-items: start; }
+.now-card a.title, .crow a.title { font-weight: 700; font-size: 15px; text-decoration: none; word-break: break-word; }
+.pct { font-size: 20px; font-weight: 800; color: var(--c); font-variant-numeric: tabular-nums; }
+.progress.big { height: 10px; }
+.next-step { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 13px; }
+.next-step a { font-weight: 600; text-decoration: none; }
+.slider { display: flex; gap: 10px; align-items: center; }
+.slider input { flex: 1; max-width: 320px; accent-color: var(--c); padding: 0; border: 0; background: none; }
+.card-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.card-actions .btn.primary, .crow-actions .btn.primary { background: var(--c, var(--accent)); border-color: var(--c, var(--accent)); }
+.compact-list { display: grid; }
+.crow { display: grid; grid-template-columns: 10px 1fr auto; gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--border); }
+.crow:first-child { border-top: 0; }
+.crow-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
+.crow a.title { font-size: 14px; }
+.crow-actions { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+.done-card summary, .full-form summary { cursor: pointer; list-style: none; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.done-card summary::-webkit-details-marker, .full-form summary::-webkit-details-marker { display: none; }
+.done-card summary h2::before, .full-form summary h2::before { content: "▸ "; color: var(--muted); }
+.done-card[open] summary h2::before, .full-form[open] summary h2::before { content: "▾ "; }
+.done-card[open] summary, .full-form[open] summary { margin-bottom: 10px; }
+.full-form summary .meta { color: var(--muted); font-size: 12px; }
+.full-form .log-form { border: 0; box-shadow: none; padding: 0; }
+.backup { text-align: center; color: var(--muted); font-size: 12px; margin: 0; }
+.backup .btn.link { font-size: 12px; }
+@media (max-width: 760px) {
+  .dash-stats { grid-template-columns: repeat(2, 1fr); }
+  .crow { grid-template-columns: 10px 1fr; }
+  .crow-actions { grid-column: 2; justify-content: flex-start; }
+}
