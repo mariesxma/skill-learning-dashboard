@@ -20,6 +20,8 @@ window.LEARNING_DATA = {
       summary: "Teaching computers to learn patterns from data, from classic machine learning to deep learning and large language models." },
     { id: "fin", name: "Finance", color: "#0f9f6e", anchor: [460, -60],
       summary: "How money, markets and companies work: valuing assets, managing risk, and building portfolios." },
+    { id: "consult", name: "Consulting & Communication", color: "#db2777", anchor: [-620, 560],
+      summary: "The other half of a forward deployed engineer: breaking down messy client problems, communicating answers to executives, running discovery with stakeholders, and making the business case for AI." },
     { id: "aifin", name: "AI × Finance", color: "#e08a00", anchor: [0, 330],
       summary: "Where the two meet: applying machine learning to trading, credit, fraud and risk." }
   ],
@@ -36,10 +38,39 @@ window.LEARNING_DATA = {
     { id: "ai-agentic", domain: "ai", name: "Agentic AI & AI Engineering" },
     { id: "fin-core", domain: "fin", name: "Core Finance" },
     { id: "fin-mkt", domain: "fin", name: "Markets & Investing" },
-    { id: "fin-quant", domain: "fin", name: "Quantitative Finance" }
+    { id: "fin-quant", domain: "fin", name: "Quantitative Finance" },
+    { id: "con-problem", domain: "consult", name: "Structured Problem Solving" },
+    { id: "con-comm", domain: "consult", name: "Executive Communication" },
+    { id: "con-client", domain: "consult", name: "Client & Stakeholder Skills" },
+    { id: "con-aistrat", domain: "consult", name: "AI Business Strategy" }
   ],
 
   concepts: [
+    // ── Consulting · Structured Problem Solving
+    { id: "mece", topic: "con-problem", label: "MECE thinking", definition: "Mutually Exclusive, Collectively Exhaustive: splitting a problem into parts that don't overlap and together cover everything, so nothing is double-counted or missed." },
+    { id: "issue-tree", topic: "con-problem", label: "Issue trees", definition: "Breaking a big question into smaller sub-questions, branch by branch, until each one can be answered with analysis.", related: ["mece", "trees-graphs"] },
+    { id: "hypothesis-driven", topic: "con-problem", label: "Hypothesis-driven problem solving", definition: "Starting with a best-guess answer early, then designing analyses to prove or disprove it, instead of boiling the ocean.", related: ["issue-tree"] },
+    { id: "prioritization", topic: "con-problem", label: "80/20 prioritization", definition: "Focusing on the few drivers that explain most of the impact, and deliberately ignoring the rest.", related: ["hypothesis-driven"] },
+
+    // ── Consulting · Executive Communication
+    { id: "pyramid-principle", topic: "con-comm", label: "Pyramid Principle", definition: "Barbara Minto's method: lead with the answer, then group supporting arguments logically underneath it, so busy executives get the point in the first sentence.", related: ["mece"] },
+    { id: "storyline", topic: "con-comm", label: "Storylining (SCQA)", definition: "Structuring a presentation as Situation → Complication → Question → Answer, so the audience follows why your recommendation matters.", related: ["pyramid-principle"] },
+    { id: "data-storytelling", topic: "con-comm", label: "Storytelling with data", definition: "Choosing the one chart that makes your point, removing clutter, and saying in words what the audience should take away.", related: ["probability-stats"] },
+    { id: "slide-design", topic: "con-comm", label: "Action titles & slide design", definition: "Every slide has a full-sentence title that states its takeaway; read only the titles in order and the whole story should make sense.", related: ["storyline"] },
+    { id: "exec-presence", topic: "con-comm", label: "Executive presence & speaking", definition: "Delivering clearly and confidently: answer first, handle tough questions calmly, and adjust depth to the audience.", related: ["pyramid-principle"] },
+
+    // ── Consulting · Client & Stakeholder Skills
+    { id: "stakeholder-interviews", topic: "con-client", label: "Stakeholder interviews", definition: "Structured conversations to understand how work really happens, what hurts, and what success means to each person.", related: ["fde"] },
+    { id: "workshops", topic: "con-client", label: "Workshop facilitation", definition: "Running sessions where a group maps a process, generates ideas and agrees on priorities, with you steering rather than lecturing.", related: ["stakeholder-interviews"] },
+    { id: "stakeholder-mgmt", topic: "con-client", label: "Stakeholder management", definition: "Knowing who decides, who influences and who is affected, and keeping each of them informed and on side.", related: ["fde"] },
+    { id: "proposals", topic: "con-client", label: "Proposals & scoping", definition: "Turning a client need into a clear scope, plan, deliverables and success criteria, so everyone agrees what will be built.", related: ["stakeholder-mgmt", "ai-architecture"] },
+
+    // ── Consulting · AI Business Strategy
+    { id: "use-case-prioritization", topic: "con-aistrat", label: "AI use-case prioritization", definition: "Scoring candidate AI use cases on value, feasibility, data readiness and risk to pick where to start.", related: ["prioritization", "ai-architecture"] },
+    { id: "business-case", topic: "con-aistrat", label: "ROI & business cases", definition: "Estimating the cost, benefit and payback of an AI initiative so leaders can decide to fund it.", related: ["npv", "use-case-prioritization"] },
+    { id: "change-mgmt", topic: "con-aistrat", label: "Change management & adoption", definition: "Getting people to actually use the new AI system: training, champions, redesigned workflows, and measuring adoption.", related: ["stakeholder-mgmt"] },
+    { id: "ai-governance", topic: "con-aistrat", label: "AI governance & risk", definition: "Policies and controls for using AI responsibly: data privacy, accountability, human oversight and regulatory compliance.", related: ["guardrails", "evals"] },
+
     // ── CS · Programming Fundamentals (start here)
     { id: "python", topic: "cs-prog", label: "Python programming", definition: "The main language of AI and data work. Variables, types, loops, conditionals, and reading/writing files are the first things to get comfortable with." },
     { id: "conditionals-loops", topic: "cs-prog", label: "Conditionals, loops & Boolean logic", definition: "The building blocks of every program: making decisions (if / else with true-or-false expressions) and repeating steps (for / while loops).", related: ["python"] },
@@ -155,6 +186,16 @@ window.LEARNING_DATA = {
   ],
 
   courses: [
+    // Consulting & Communication
+    { id: "c-emory-present", title: "Consulting Presentations and Storytelling", provider: "Coursera / Emory University", url: "https://www.coursera.org/learn/management-consulting-presentations", cost: "Subscription (7-day trial / financial aid)", level: "Beginner",
+      covers: ["pyramid-principle", "storyline", "data-storytelling", "slide-design", "exec-presence"] },
+    { id: "c-emory-problem", title: "Consulting Approach to Problem Solving", provider: "Coursera / Emory University", url: "https://www.coursera.org/learn/consulting-problem-solving", cost: "Subscription (7-day trial / financial aid)", level: "Beginner",
+      covers: ["mece", "issue-tree", "hypothesis-driven", "prioritization"] },
+    { id: "c-genai-everyone", title: "Generative AI for Everyone", provider: "DeepLearning.AI / Coursera", url: "https://www.coursera.org/learn/generative-ai-for-everyone", cost: "Free", level: "Beginner",
+      covers: ["use-case-prioritization", "business-case", "ai-governance", "prompting"] },
+    { id: "c-minto", title: "The Pyramid Principle (Barbara Minto: book & course)", provider: "barbaraminto.com", url: "https://barbaraminto.com/course", cost: "Book is cheap; course is paid", level: "Intermediate",
+      covers: ["pyramid-principle", "storyline", "mece"] },
+
     // CS Foundations (roughly in this order)
     { id: "c-cs50p", title: "CS50's Introduction to Programming with Python", provider: "Harvard", url: "https://cs50.harvard.edu/python/", cost: "Free", level: "Beginner",
       covers: ["python", "functions", "oop", "debugging", "testing"] },

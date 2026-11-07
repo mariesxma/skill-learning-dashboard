@@ -954,6 +954,14 @@
     "api": ["apis"], "rest": ["apis"], "json": ["apis"], "unit test": ["testing"], "pytest": ["testing"], "system design": ["system-design", "ai-architecture"],
     "linear algebra": ["linear-algebra"], "matri": ["linear-algebra"], "vectors": ["linear-algebra"], "probability": ["probability-stats"], "statistic": ["probability-stats"],
     "calculus": ["calculus"], "derivative": ["calculus"], "discrete math": ["discrete-math"], "logic": ["discrete-math"],
+    "consult": ["hypothesis-driven", "pyramid-principle", "stakeholder-mgmt"], "presentation": ["storyline", "slide-design", "exec-presence"],
+    "storytelling": ["storyline", "data-storytelling"], "pyramid": ["pyramid-principle"], "minto": ["pyramid-principle"], "mece": ["mece"],
+    "issue tree": ["issue-tree"], "hypothesis": ["hypothesis-driven"], "problem solving": ["issue-tree", "hypothesis-driven"], "80/20": ["prioritization"],
+    "powerpoint": ["slide-design"], "slide": ["slide-design"], "public speaking": ["exec-presence"], "speaking": ["exec-presence"], "executive presence": ["exec-presence"],
+    "communication": ["pyramid-principle", "exec-presence"], "interview": ["stakeholder-interviews"], "workshop": ["workshops"], "facilitat": ["workshops"],
+    "stakeholder management": ["stakeholder-mgmt"], "proposal": ["proposals"], "scoping": ["proposals"], "use case": ["use-case-prioritization"],
+    "business case": ["business-case"], "roi": ["business-case"], "change management": ["change-mgmt"], "adoption": ["change-mgmt"],
+    "governance": ["ai-governance"], "responsible ai": ["ai-governance"], "ai strategy": ["use-case-prioritization", "business-case"], "for everyone": ["use-case-prioritization"],
     "customer discovery": ["fde"], "stakeholder": ["fde"], "fine-tun": ["fine-tuning"], "embedding": ["embedding"]
   };
   const escapeRe = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -1246,7 +1254,9 @@
       h("div", { class: "now-top" }, h("div", null, courseLink(c), h("div", { class: "meta", text: courseMeta(c) })), pctEl),
       h("div", { class: "progress big" }, barFill),
       step,
-      skills.length ? h("p", { class: "meta skills-line", text: "Skills: " + skills.slice(0, 5).join(", ") + (skills.length > 5 ? ` +${skills.length - 5} more` : "") }) : null,
+      skills.length ? h("p", { class: "meta skills-line", text: "Skills: " + skills.slice(0, 5).join(", ") + (skills.length > 5 ? ` +${skills.length - 5} more` : "") })
+        : c.mine ? h("p", { class: "meta skills-line" }, "No skills linked yet, so nothing lights up on the map. ",
+          h("button", { class: "btn small", text: "Add skills", onclick: () => { startEdit(c.logId); $("curriculum").open = true; } })) : null,
       h("div", { class: "card-actions" },
         h("button", { class: "btn small primary", text: "Mark complete", onclick: () => setCourseStatus(c, "completed") }),
         h("button", { class: "btn small", text: "Pause", title: "Move to Up next", onclick: () => setCourseStatus(c, "planned") }),
@@ -1307,9 +1317,10 @@
   }
   function qSkills() {
     const ids = [...qConcepts()];
-    q.skills.textContent = ids.length
-      ? "Skills it will track: " + ids.map((id) => conceptById[id].label).join(", ")
-      : "No matching skills found. You can add them later with Edit.";
+    q.skills.textContent = "";
+    if (ids.length) q.skills.textContent = "Skills it will track: " + ids.map((id) => conceptById[id].label).join(", ");
+    else q.skills.append("No matching skills on your map yet, so this course won't light up any nodes. ",
+      h("button", { type: "button", class: "btn small", text: "Add skills", onclick: () => { $("q-more").click(); $("curriculum").open = true; } }));
   }
   function qAdd(status) {
     const p = parseLink(q.url.value); if (!p) { q.url.focus(); return; }
@@ -1370,6 +1381,25 @@
 
   // ───────────────────────── boot ─────────────────────────
   $("app-title").textContent = D.title || "Skill Map";
+  // If you added a course yourself that is now a curated course on the map, merge them:
+  // keep your status/progress on the curated one and drop the duplicate.
+  (() => {
+    const rank = { none: 0, planned: 1, "in-progress": 2, completed: 3 };
+    let changed = false;
+    log = log.filter((e) => {
+      const hit = findKnown(e.url || "");
+      if (!hit || hit.module) return true;
+      const id = hit.course.id, cur = courseStatus[id] || "none";
+      if ((rank[e.status] || 0) > rank[cur]) courseStatus[id] = e.status;
+      const oldKey = "log:" + e.id;
+      if (progress[oldKey] && !progress[id]) progress[id] = progress[oldKey];
+      delete progress[oldKey];
+      (e.concepts || []).forEach((cid) => { if (!levels[cid] && e.status === "completed") levels[cid] = 2; });
+      changed = true;
+      return false;
+    });
+    if (changed) save();
+  })();
   buildGraph(); renderGraph(); settle(320); positionAll();
   refreshAll(); renderConceptPicker();
   switchView(store.get(KEYS.tab, "log") === "graph" ? "graph" : "log");
