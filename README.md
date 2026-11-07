@@ -6,6 +6,16 @@ An interactive knowledge graph of what I'm learning. It starts from **AI**, expa
 - **Skills gained:** mark a course *Completed* and every concept it covers lights up. Each domain hub shows a progress ring.
 - **My learning log:** a separate tab where you paste any course link (Udemy, Coursera, YouTube…). The title and provider are filled in from the link, and likely concepts are pre-selected. Add status, dates and notes. Your courses appear on the graph as ★ dashed diamonds when **Show courses** is on.
 
+## Day to day: My courses
+
+The **My courses** tab is the home page:
+
+- **Stats:** courses in progress, completed, skills gained, and how much of the map you've explored.
+- **Add a course:** paste a link, then press **Start learning** or **Save for later**. Skills are matched automatically. If the link is already on the map (e.g. a CS50x week), it offers to tick it off instead.
+- **Learning now:** one card per course with a progress bar. Courses with weeks show the next week and a **✓ Done** button; other courses have a progress slider (100% marks it complete).
+- **Up next** and **Completed** lists, with Start, Edit, Reopen and Remove.
+- **Add or edit with all details** (collapsed) holds the full form: project vs. course, skills, curriculum sync, dates and notes.
+
 ## Run it
 
 No build step and no dependencies. Open `index.html` in a browser, or serve the folder:

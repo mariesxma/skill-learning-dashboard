@@ -5,7 +5,7 @@
   const SVGNS = "http://www.w3.org/2000/svg";
 
   // ───────────────────────── storage (per browser) ─────────────────────────
-  const KEYS = { status: "skillmap.courseStatus", learned: "skillmap.learned", log: "skillmap.log", custom: "skillmap.custom", levels: "skillmap.levels", focus: "skillmap.focus" };
+  const KEYS = { status: "skillmap.courseStatus", learned: "skillmap.learned", log: "skillmap.log", custom: "skillmap.custom", levels: "skillmap.levels", focus: "skillmap.focus", progress: "skillmap.progress", tab: "skillmap.tab" };
   const store = {
     get(k, fallback) {
       try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
@@ -17,7 +17,8 @@
   let log = store.get(KEYS.log, []);                        // user's own courses and projects
   let levels = store.get(KEYS.levels, {}) || {};            // concept id → 1 Aware … 4 Master (set by you)
   manualLearned.forEach((id) => { if (!levels[id]) levels[id] = 2; }); // older "mark as learned" = Understand
-  let focus = store.get(KEYS.focus, "t:ai-agentic");         // depth track: "t:<topic>" or "d:<domain>"
+  let focus = store.get(KEYS.focus, "t:ai-agentic");
+  let progress = store.get(KEYS.progress, {}) || {};          // course id → % done (courses without weeks)         // depth track: "t:<topic>" or "d:<domain>"
   if (!Array.isArray(log)) log = [];
   const save = () => {
     store.set(KEYS.status, courseStatus);
@@ -26,6 +27,7 @@
     store.set(KEYS.custom, custom);
     store.set(KEYS.levels, levels);
     store.set(KEYS.focus, focus);
+    store.set(KEYS.progress, progress);
   };
 
   // ───────────────────────── lookups ─────────────────────────
@@ -147,7 +149,7 @@
     });
     const mine = log.map((e) => ({
       id: "log:" + e.id, logId: e.id, title: e.title, provider: e.provider, url: e.url, cost: "", level: "",
-      covers: (e.concepts || []).filter((id) => conceptById[id]), mine: true, kind: e.kind || "course", status: e.status, domain: e.domain, notes: e.notes
+      covers: (e.concepts || []).filter((id) => conceptById[id]), mine: true, kind: e.kind || "course", status: e.status, start: e.start, end: e.end, domain: e.domain, notes: e.notes
     }));
     return [...mine, ...curated];
   }
@@ -873,6 +875,7 @@
       t.classList.toggle("active", on); t.setAttribute("aria-selected", on);
     });
     document.querySelectorAll(".view").forEach((v) => v.classList.toggle("active", v.id === "view-" + name));
+    document.body.dataset.view = name; store.set(KEYS.tab, name);
     if (name === "graph" && view.k === 1 && view.x === 0) requestAnimationFrame(fit);
   }
   document.querySelectorAll(".tab").forEach((t) => t.addEventListener("click", () => switchView(t.dataset.view)));
@@ -994,7 +997,10 @@
     return null;
   }
   function renderKnownMatch() {
-    const box = $("f-match"), hit = findKnown(f.url.value);
+    renderKnownInto($("f-match"), findKnown(f.url.value));
+    if ($("q-url")) renderKnownInto($("q-known"), findKnown($("q-url").value));
+  }
+  function renderKnownInto(box, hit) {
     box.textContent = ""; box.hidden = !hit; if (!hit) return;
     const course = allCourses().find((c) => c.id === hit.course.id);
     if (hit.module) {
@@ -1007,8 +1013,10 @@
         m.covers.length ? h("p", { class: "meta", text: "Skills this week gives you: " + m.covers.map((id) => conceptById[id].label).join(", ") }) : null,
         h("p", { class: "meta", text: `${course.modules.filter((x) => x.done).length} of ${course.modules.length} weeks done.` }));
     } else {
-      box.append(h("p", null, h("strong", { text: course.title }), " is already on your map. Set its status here instead of adding it again:"),
-        h("div", { class: "row" }, statusSelect(course),
+      box.append(h("p", null, h("strong", { text: course.title }), ` is already on your map (${STATUS_LABEL[course.status].toLowerCase()}).`),
+        h("div", { class: "row" },
+          course.status !== "in-progress" ? h("button", { type: "button", class: "btn small primary", text: "Start learning", onclick: () => setCourseStatus(course, "in-progress") }) : null,
+          course.status === "none" ? h("button", { type: "button", class: "btn small", text: "Save for later", onclick: () => setCourseStatus(course, "planned") }) : null,
           h("button", { type: "button", class: "btn small", text: "Show course on map", onclick: () => showCuratedCourse(course.id) })));
     }
   }
@@ -1171,6 +1179,7 @@
     $("f-submit").textContent = "Save changes";
     $("f-cancel").hidden = false;
     renderConceptPicker();
+    $("full-form").open = true;
     form.scrollIntoView({ behavior: "smooth", block: "start" });
   }
   $("f-cancel").addEventListener("click", resetForm);
@@ -1188,45 +1197,147 @@
     if (editingId) log = log.map((x) => (x.id === editingId ? entry : x));
     else log.unshift(entry);
     save(); resetForm(); rebuild();
+    $("full-form").open = false;
+    document.querySelector("#view-log").scrollTo({ top: 0, behavior: "smooth" });
   });
 
-  function renderLog() {
-    const list = $("log-list"), filter = $("log-filter").value;
-    list.textContent = "";
-    const items = log.filter((e) => filter === "all" || e.status === filter)
-      .sort((a, b) => (b.start || b.added || "").localeCompare(a.start || a.added || ""));
-    $("log-empty").hidden = items.length > 0;
-    $("log-empty").textContent = log.length ? "Nothing with this status." : "No courses yet. Paste your first Udemy (or any) course link above.";
-    items.forEach((e) => {
-      const d = domainById[e.domain] || D.domains[0];
-      const course = allCourses().find((c) => c.logId === e.id);
-      const dates = [e.start && "Started " + e.start, e.end && "Finished " + e.end].filter(Boolean).join(" · ");
-      list.append(h("li", { class: "entry", style: `--c:${d.color}` },
-        h("div", { class: "entry-top" },
-          h("div", null,
-            h("a", { class: "title", href: safeUrl(e.url), target: "_blank", rel: "noopener noreferrer" }, e.title + " ↗"),
-            h("div", { class: "meta", text: [e.kind === "project" ? "Project" : null, e.provider, d.name, dates].filter(Boolean).join(" · ") })),
-          h("div", { class: "entry-actions" },
-            h("span", { class: "status " + e.status, text: STATUS_LABEL[e.status] }),
-            statusSelect(course))),
-        (e.concepts || []).length ? h("div", null, ...e.concepts.map(conceptChip)) : null,
-        e.notes ? h("p", { class: "notes", text: e.notes }) : null,
-        h("div", { class: "entry-actions" },
-          h("button", { class: "btn small", text: "Show on graph", onclick: () => {
-            showCourses = true; $("show-courses").checked = true; rebuild(); switchView("graph");
-            requestAnimationFrame(() => select("k:log:" + e.id, { center: true }));
-          } }),
-          h("button", { class: "btn small", text: "Edit", onclick: () => startEdit(e.id) }),
-          h("button", { class: "btn small danger", text: "Delete", onclick: () => {
-            if (!confirm(`Remove “${e.title}” from your learning path?`)) return;
-            log = log.filter((x) => x.id !== e.id); save(); rebuild();
-          } }))));
-    });
+  // ───────────────────────── My courses: the simple dashboard ─────────────────────────
+  function coursePct(c) {
+    if (c.status === "completed") return 100;
+    if (c.modules && c.modules.length) return Math.round((c.modules.filter((m) => m.done).length / c.modules.length) * 100);
+    return progress[c.id] || 0;
   }
-  $("log-filter").addEventListener("change", renderLog);
+  function setPct(c, v) {
+    if (v >= 100) { delete progress[c.id]; setCourseStatus(c, "completed"); return; }
+    progress[c.id] = v; save(); renderLog();
+  }
+  const pctText = (x) => Math.round(x * 100) + "%";
+  function statTile(value, label, sub) {
+    return h("div", { class: "tile" }, h("div", { class: "tile-value", text: String(value) }), h("div", { class: "tile-label", text: label }), sub ? h("div", { class: "tile-sub", text: sub }) : null);
+  }
+  function removeMine(c) {
+    if (!confirm(`Remove “${c.title}” from your courses?`)) return;
+    log = log.filter((x) => x.id !== c.logId); delete progress[c.id]; save(); rebuild();
+  }
+  function courseLink(c, cls = "title") {
+    return h("a", { class: cls, href: safeUrl(c.url), target: "_blank", rel: "noopener noreferrer", text: c.title + " ↗" });
+  }
+  function courseMeta(c) {
+    return [c.kind === "project" ? "Project" : null, c.provider, domainById[courseDomainId(c)]?.name].filter(Boolean).join(" · ");
+  }
+  function nowCard(c) {
+    const color = domainById[courseDomainId(c)].color, pct = coursePct(c);
+    const nextMod = (c.modules || []).find((m) => !m.done);
+    const skills = c.covers.map((id) => conceptById[id]?.label).filter(Boolean);
+    const pctEl = h("div", { class: "pct", text: pct + "%" });
+    const barFill = h("div", { style: `width:${pct}%;background:${color}` });
+    let step = null;
+    if (nextMod) {
+      step = h("div", { class: "next-step" }, h("span", { class: "meta", text: "Next:" }),
+        h("a", { href: safeUrl(nextMod.url), target: "_blank", rel: "noopener noreferrer", text: nextMod.title + " ↗" }),
+        h("button", { class: "btn small", text: "✓ Done", onclick: () => setModuleDone(c.id, nextMod.id, true) }));
+    } else if (!(c.modules || []).length) {
+      step = h("label", { class: "slider" }, h("span", { class: "meta", text: "Progress" }),
+        h("input", { type: "range", min: 0, max: 100, step: 5, value: pct, "aria-label": "Progress for " + c.title,
+          oninput: (e) => { pctEl.textContent = e.target.value + "%"; barFill.style.width = e.target.value + "%"; },
+          onchange: (e) => setPct(c, +e.target.value) }));
+    }
+    return h("article", { class: "now-card", style: `--c:${color}` },
+      h("div", { class: "now-top" }, h("div", null, courseLink(c), h("div", { class: "meta", text: courseMeta(c) })), pctEl),
+      h("div", { class: "progress big" }, barFill),
+      step,
+      skills.length ? h("p", { class: "meta skills-line", text: "Skills: " + skills.slice(0, 5).join(", ") + (skills.length > 5 ? ` +${skills.length - 5} more` : "") }) : null,
+      h("div", { class: "card-actions" },
+        h("button", { class: "btn small primary", text: "Mark complete", onclick: () => setCourseStatus(c, "completed") }),
+        h("button", { class: "btn small", text: "Pause", title: "Move to Up next", onclick: () => setCourseStatus(c, "planned") }),
+        c.mine ? h("button", { class: "btn small", text: "Edit", onclick: () => startEdit(c.logId) }) : null,
+        h("button", { class: "btn small link", text: "See skills on map", onclick: () => showCuratedCourse(c.id) })));
+  }
+  function compactRow(c, kind) {
+    const color = domainById[courseDomainId(c)].color;
+    const actions = kind === "next"
+      ? [h("button", { class: "btn small primary", text: "Start", onclick: () => setCourseStatus(c, "in-progress") }),
+         c.mine ? h("button", { class: "btn small", text: "Edit", onclick: () => startEdit(c.logId) }) : null,
+         h("button", { class: "btn small link", text: "Remove", onclick: () => (c.mine ? removeMine(c) : setCourseStatus(c, "none")) })]
+      : [h("button", { class: "btn small", text: "Reopen", onclick: () => setCourseStatus(c, "in-progress") }),
+         c.mine ? h("button", { class: "btn small", text: "Edit", onclick: () => startEdit(c.logId) }) : null];
+    const meta = kind === "done" && c.end ? `${courseMeta(c)} · finished ${c.end}` : courseMeta(c);
+    return h("div", { class: "crow", style: `--c:${color}` },
+      h("span", { class: "crow-dot" }),
+      h("div", { class: "crow-main" }, courseLink(c), h("div", { class: "meta", text: meta })),
+      h("div", { class: "crow-actions" }, ...actions));
+  }
+  function renderLog() {
+    const all = allCourses();
+    const now = all.filter((c) => c.status === "in-progress").sort((a, b) => coursePct(b) - coursePct(a));
+    const next = all.filter((c) => c.status === "planned");
+    const done = all.filter((c) => c.status === "completed").sort((a, b) => (b.end || "").localeCompare(a.end || ""));
+    const total = D.concepts.length || 1;
+    const cnt = (lvl) => D.concepts.filter((c) => levelOf(c.id) >= lvl).length;
+    const stats = $("dash-stats"); stats.textContent = "";
+    stats.append(
+      statTile(now.length, "Learning now"),
+      statTile(done.length, "Completed"),
+      statTile(cnt(2), "Skills gained", `${cnt(3)} applied in projects`),
+      statTile(pctText(cnt(1) / total), "Of the map explored", `${pctText(cnt(3) / total)} deep`));
+    const fill = (id, items, make, emptyText) => {
+      const el = $(id); el.textContent = "";
+      if (items.length) items.forEach((c) => el.append(make(c)));
+      else el.append(h("p", { class: "empty", text: emptyText }));
+    };
+    fill("now-list", now, nowCard, "Nothing in progress. Paste a course link above, or press Start on something in Up next.");
+    fill("next-list", next, (c) => compactRow(c, "next"), "Nothing saved for later.");
+    fill("done-list", done, (c) => compactRow(c, "done"), "Nothing completed yet.");
+    $("done-count").textContent = `(${done.length})`;
+    $("log-count").textContent = now.length;
+  }
+
+  // ── Quick add: paste a link → Start learning / Save for later
+  const q = { url: $("q-url"), title: $("q-title"), preview: $("q-preview"), known: $("q-known"), skills: $("q-skills") };
+  let qAutoTitle = "";
+  const qConcepts = () => suggestConcepts(q.title.value + " " + q.url.value.replace(/^\s*https?:\/\/[^/]+/i, "").replace(/[-_/]+/g, " "));
+  function qUpdate() {
+    const hit = findKnown(q.url.value);
+    renderKnownInto(q.known, hit);
+    const parsed = !hit && parseLink(q.url.value);
+    q.preview.hidden = !parsed;
+    if (!parsed) return;
+    if (!q.title.value || q.title.value === qAutoTitle) { q.title.value = parsed.title; qAutoTitle = parsed.title; }
+    qSkills();
+  }
+  function qSkills() {
+    const ids = [...qConcepts()];
+    q.skills.textContent = ids.length
+      ? "Skills it will track: " + ids.map((id) => conceptById[id].label).join(", ")
+      : "No matching skills found. You can add them later with Edit.";
+  }
+  function qAdd(status) {
+    const p = parseLink(q.url.value); if (!p) { q.url.focus(); return; }
+    const ids = [...qConcepts()];
+    log.unshift({
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), url: q.url.value.trim(),
+      title: q.title.value.trim() || p.title, provider: p.provider, domain: guessDomain(ids) || D.domains[0].id,
+      kind: "course", status, start: status === "in-progress" ? today() : "", end: "",
+      concepts: ids, notes: "", curriculum: "", added: today()
+    });
+    save(); q.url.value = ""; q.title.value = ""; qAutoTitle = ""; q.preview.hidden = true; q.known.hidden = true;
+    rebuild();
+  }
+  q.url.addEventListener("input", qUpdate);
+  q.title.addEventListener("input", qSkills);
+  q.url.addEventListener("keydown", (e) => { if (e.key === "Enter" && !q.preview.hidden) { e.preventDefault(); qAdd("in-progress"); } });
+  $("q-start").addEventListener("click", () => qAdd("in-progress"));
+  $("q-later").addEventListener("click", () => qAdd("planned"));
+  $("q-more").addEventListener("click", () => {
+    resetForm();
+    f.url.value = q.url.value; f.title.value = q.title.value; autoTitle = q.title.value;
+    autoFill(); renderKnownMatch();
+    $("full-form").open = true;
+    form.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
 
   $("export").addEventListener("click", () => {
-    const blob = new Blob([JSON.stringify({ version: 2, exported: today(), log, courseStatus, learned: [...manualLearned], levels, focus, custom }, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify({ version: 2, exported: today(), log, courseStatus, learned: [...manualLearned], levels, focus, progress, custom }, null, 2)], { type: "application/json" });
     const a = h("a", { href: URL.createObjectURL(blob), download: `learning-path-${today()}.json` });
     document.body.append(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
@@ -1243,6 +1354,7 @@
       if (Array.isArray(data.learned)) data.learned.forEach((id) => { manualLearned.add(id); if (!levels[id]) levels[id] = 2; });
       if (data.levels && typeof data.levels === "object") Object.entries(data.levels).forEach(([id, l]) => { if (l >= 1 && l <= 4) levels[id] = Math.max(levels[id] || 0, l); });
       if (typeof data.focus === "string") focus = data.focus;
+      if (data.progress && typeof data.progress === "object") progress = { ...progress, ...data.progress };
       if (data.custom) {
         arr(data.custom.domains).forEach((d) => registerDomain(d) && custom.domains.push(d));
         arr(data.custom.topics).forEach((t) => registerTopic(t) && custom.topics.push(t));
@@ -1260,6 +1372,7 @@
   $("app-title").textContent = D.title || "Skill Map";
   buildGraph(); renderGraph(); settle(320); positionAll();
   refreshAll(); renderConceptPicker();
+  switchView(store.get(KEYS.tab, "log") === "graph" ? "graph" : "log");
   requestAnimationFrame(fit);
   window.addEventListener("resize", () => { clearTimeout(window.__fitT); window.__fitT = setTimeout(fit, 150); });
 })();

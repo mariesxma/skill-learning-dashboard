@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Skill Map</title>
-  <link rel="stylesheet" href="styles.css?v=7" />
+  <link rel="stylesheet" href="styles.css?v=8" />
 </head>
 <body>
   <header class="topbar">
@@ -13,14 +13,14 @@
       <h1 id="app-title">Skill Map</h1>
     </div>
     <nav class="tabs" role="tablist">
-      <button class="tab active" role="tab" data-view="graph" aria-selected="true">Knowledge graph</button>
-      <button class="tab" role="tab" data-view="log" aria-selected="false">My learning log <span id="log-count" class="pill">0</span></button>
+      <button class="tab active" role="tab" data-view="log" aria-selected="true">My courses <span id="log-count" class="pill">0</span></button>
+      <button class="tab" role="tab" data-view="graph" aria-selected="false">Skill map</button>
     </nav>
     <div id="stats" class="stats" aria-label="Progress by domain"></div>
   </header>
 
   <!-- ─────────── Graph view ─────────── -->
-  <main id="view-graph" class="view active">
+  <main id="view-graph" class="view">
     <div class="graph-wrap">
       <div class="toolbar">
         <input id="search" type="search" placeholder="Find a concept…" list="concept-list" autocomplete="off" />
@@ -59,10 +59,44 @@
   </main>
 
   <!-- ─────────── Learning log view ─────────── -->
-  <main id="view-log" class="view">
+  <main id="view-log" class="view active">
     <section class="log-wrap">
+      <div id="dash-stats" class="dash-stats" aria-label="Progress summary"></div>
+
+      <div class="card quick-add">
+        <h2>Add a course</h2>
+        <input id="q-url" type="url" placeholder="Paste a course link: Udemy, Coursera, YouTube, CS50…" autocomplete="off" />
+        <div id="q-known" class="match" hidden aria-live="polite"></div>
+        <div id="q-preview" class="q-preview" hidden>
+          <label>Title<input id="q-title" type="text" /></label>
+          <div class="q-actions">
+            <button type="button" class="btn primary" id="q-start">Start learning</button>
+            <button type="button" class="btn" id="q-later">Save for later</button>
+            <button type="button" class="btn link" id="q-more">More details…</button>
+          </div>
+          <p id="q-skills" class="meta"></p>
+        </div>
+      </div>
+
+      <section class="card">
+        <div class="sec-head"><h2>Learning now</h2></div>
+        <div id="now-list" class="now-list"></div>
+      </section>
+
+      <section class="card">
+        <div class="sec-head"><h2>Up next</h2></div>
+        <div id="next-list" class="compact-list"></div>
+      </section>
+
+      <details class="card done-card" id="done-card">
+        <summary><h2>Completed <span id="done-count" class="meta"></span></h2></summary>
+        <div id="done-list" class="compact-list"></div>
+      </details>
+
+      <details class="card full-form" id="full-form">
+        <summary><h2>Add or edit with all details</h2><span class="meta">Type (course or project), skills it teaches, curriculum sync, dates, notes</span></summary>
       <form id="log-form" class="card log-form">
-        <h2 id="form-title">Add a course or project to your learning path</h2>
+        <h2 id="form-title" class="sr-only">Add with all details</h2>
         <div class="row">
           <label class="grow">Course link
             <input id="f-url" type="url" required placeholder="https://www.udemy.com/course/…" />
@@ -122,28 +156,16 @@
           <button type="button" class="btn ghost" id="f-cancel" hidden>Cancel edit</button>
         </div>
       </form>
+      </details>
 
-      <section class="card">
-        <div class="log-head">
-          <h2>My learning path</h2>
-          <div class="log-tools">
-            <select id="log-filter" aria-label="Filter by status">
-              <option value="all">All</option>
-              <option value="planned">Planned</option>
-              <option value="in-progress">In progress</option>
-              <option value="completed">Completed</option>
-            </select>
-            <button class="btn ghost" id="export">Export JSON</button>
-            <label class="btn ghost file-btn">Import JSON<input id="import" type="file" accept="application/json,.json" hidden /></label>
-          </div>
-        </div>
-        <ol id="log-list" class="timeline"></ol>
-        <p id="log-empty" class="empty">No courses yet. Paste your first Udemy (or any) course link above.</p>
-      </section>
+      <p class="backup">Saved in this browser.
+        <button type="button" class="btn link" id="export">Export backup</button> ·
+        <label class="btn link file-btn">Import backup<input id="import" type="file" accept="application/json,.json" hidden /></label>
+      </p>
     </section>
   </main>
 
-  <script src="data.js?v=7"></script>
-  <script src="app.js?v=7"></script>
+  <script src="data.js?v=8"></script>
+  <script src="app.js?v=8"></script>
 </body>
 </html>
