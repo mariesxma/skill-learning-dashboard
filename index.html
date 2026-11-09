@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Skill Map</title>
-  <link rel="stylesheet" href="styles.css?v=10" />
+  <link rel="stylesheet" href="styles.css?v=11" />
 </head>
 <body>
   <header class="topbar">
@@ -61,8 +61,8 @@
   <!-- ─────────── Learning log view ─────────── -->
   <main id="view-log" class="view active">
     <section class="log-wrap">
+      <div class="log-top">
       <div id="dash-stats" class="dash-stats" aria-label="Progress summary"></div>
-      <div id="cat-filter" class="cat-filter" role="toolbar" aria-label="Filter by category"></div>
 
       <div class="card quick-add">
         <h2>Add a course</h2>
@@ -78,6 +78,19 @@
           <p id="q-skills" class="meta"></p>
         </div>
       </div>
+      </div>
+
+      <div class="filter-bar">
+        <div id="cat-filter" class="cat-filter" role="toolbar" aria-label="Filter by category"></div>
+        <div class="layout-toggle" role="group" aria-label="Layout">
+          <button type="button" class="lt-btn" data-layout="columns" title="One column per category">▦ Columns</button>
+          <button type="button" class="lt-btn" data-layout="list" title="Everything in one list">☰ List</button>
+        </div>
+      </div>
+
+      <div id="board" class="board" hidden></div>
+
+      <div id="list-view" class="list-view">
 
       <section class="card">
         <div class="sec-head"><h2>Learning now</h2></div>
@@ -93,6 +106,7 @@
         <summary><h2>Completed <span id="done-count" class="meta"></span></h2></summary>
         <div id="done-list" class="compact-list"></div>
       </details>
+      </div>
 
       <details class="card full-form" id="full-form">
         <summary><h2>Add or edit with all details</h2><span class="meta">Type (course or project), skills it teaches, curriculum sync, dates, notes</span></summary>
@@ -166,7 +180,7 @@
     </section>
   </main>
 
-  <script src="data.js?v=10"></script>
-  <script src="app.js?v=10"></script>
+  <script src="data.js?v=11"></script>
+  <script src="app.js?v=11"></script>
 </body>
 </html>
