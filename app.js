@@ -1482,6 +1482,21 @@
     ev.target.value = "";
   });
 
+  // ───────────────────────── light / dark theme ─────────────────────────
+  function applyTheme(choice) {
+    if (choice === "light" || choice === "dark") document.documentElement.dataset.theme = choice;
+    else delete document.documentElement.dataset.theme;
+    document.querySelectorAll(".th-btn").forEach((b) => {
+      const on = b.dataset.themeChoice === (choice || "auto");
+      b.classList.toggle("on", on); b.setAttribute("aria-pressed", on);
+    });
+  }
+  document.querySelectorAll(".th-btn").forEach((b) => b.addEventListener("click", () => {
+    const choice = b.dataset.themeChoice;
+    store.set("skillmap.theme", choice); applyTheme(choice);
+  }));
+  applyTheme(store.get("skillmap.theme", "auto"));
+
   // ───────────────────────── boot ─────────────────────────
   $("app-title").textContent = D.title || "Skill Map";
   // If you added a course yourself that is now a curated course on the map, merge them:

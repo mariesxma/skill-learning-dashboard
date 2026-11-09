@@ -380,3 +380,12 @@ body.board-mode .list-view, body.board-mode .full-form, body.board-mode .backup 
 .board .crow { grid-template-columns: 10px 1fr; }
 .board .crow-actions { grid-column: 2; justify-content: flex-start; }
 .board-done summary { cursor: pointer; font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+
+/* ── Theme toggle ── */
+.theme-toggle { display: flex; background: var(--surface-2); padding: 3px; border-radius: 10px; gap: 2px; flex-shrink: 0; }
+.th-btn { font: inherit; font-size: 12px; font-weight: 600; min-width: 32px; border: 0; background: transparent; color: var(--muted); padding: 5px 9px; border-radius: 8px; cursor: pointer; }
+.th-btn.on { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+body[data-view="log"] .theme-toggle { margin-left: auto; }
+body[data-view="graph"] .theme-toggle { order: 3; }
+body[data-view="graph"] .stats { order: 4; }
+body[data-view="graph"] .theme-toggle { margin-left: auto; }
