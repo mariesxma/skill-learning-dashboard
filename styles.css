@@ -333,3 +333,18 @@ body[data-view="log"] .stats { display: none; }
   .crow { grid-template-columns: 10px 1fr; }
   .crow-actions { grid-column: 2; justify-content: flex-start; }
 }
+
+/* ── Course categories ── */
+.cat-filter { display: flex; flex-wrap: wrap; gap: 6px; }
+.cat-chip { font: inherit; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 99px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; }
+.cat-chip.on { background: var(--cat, var(--text)); border-color: var(--cat, var(--text)); color: #fff; }
+.cat-chip.on .cat-dot { background: #fff; }
+.cat-chip.add { color: var(--accent); border-style: dashed; }
+.cat-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--cat); display: inline-block; }
+.cat-n { font-size: 11px; font-weight: 700; opacity: .7; font-variant-numeric: tabular-nums; }
+.cat-head { display: flex; align-items: center; gap: 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 6px 0 2px; }
+.cat-head:first-child { margin-top: 0; }
+.meta-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
+.cat-select { font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 99px; border: 1px solid var(--cat);
+  color: var(--cat); background: color-mix(in srgb, var(--cat) 8%, var(--surface)); cursor: pointer; max-width: 200px; }

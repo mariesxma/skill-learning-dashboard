@@ -5,7 +5,7 @@
   const SVGNS = "http://www.w3.org/2000/svg";
 
   // ───────────────────────── storage (per browser) ─────────────────────────
-  const KEYS = { status: "skillmap.courseStatus", learned: "skillmap.learned", log: "skillmap.log", custom: "skillmap.custom", levels: "skillmap.levels", focus: "skillmap.focus", progress: "skillmap.progress", tab: "skillmap.tab" };
+  const KEYS = { status: "skillmap.courseStatus", learned: "skillmap.learned", log: "skillmap.log", custom: "skillmap.custom", levels: "skillmap.levels", focus: "skillmap.focus", progress: "skillmap.progress", tab: "skillmap.tab", cats: "skillmap.categories", courseCat: "skillmap.courseCategory", catFilter: "skillmap.catFilter" };
   const store = {
     get(k, fallback) {
       try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
@@ -18,7 +18,22 @@
   let levels = store.get(KEYS.levels, {}) || {};            // concept id → 1 Aware … 4 Master (set by you)
   manualLearned.forEach((id) => { if (!levels[id]) levels[id] = 2; }); // older "mark as learned" = Understand
   let focus = store.get(KEYS.focus, "t:ai-agentic");
-  let progress = store.get(KEYS.progress, {}) || {};          // course id → % done (courses without weeks)         // depth track: "t:<topic>" or "d:<domain>"
+  let progress = store.get(KEYS.progress, {}) || {};          // course id → % done (courses without weeks)
+  // Course categories for the My courses page (Degree, AI, Enterprise Architecture, … plus your own)
+  const DEFAULT_CATS = [
+    { id: "degree", name: "Degree", color: "#0f766e", pinned: true },
+    { id: "ai", name: "AI", color: "#7c5cff", pinned: true },
+    { id: "ea", name: "Enterprise Architecture", color: "#0369a1", pinned: true },
+    { id: "cs", name: "CS Foundations", color: "#2563eb" },
+    { id: "consult", name: "Consulting", color: "#db2777" },
+    { id: "fin", name: "Finance", color: "#0f9f6e" },
+    { id: "other", name: "Other", color: "#64748b" }
+  ];
+  let categories = store.get(KEYS.cats, null);
+  if (!Array.isArray(categories) || !categories.length) categories = DEFAULT_CATS.map((c) => ({ ...c }));
+  DEFAULT_CATS.forEach((d) => { if (!categories.some((c) => c.id === d.id)) categories.push({ ...d }); });
+  let courseCat = store.get(KEYS.courseCat, {}) || {};        // course id → category id (when you change it)
+  let catFilter = store.get(KEYS.catFilter, "all");         // depth track: "t:<topic>" or "d:<domain>"
   if (!Array.isArray(log)) log = [];
   const save = () => {
     store.set(KEYS.status, courseStatus);
@@ -28,6 +43,9 @@
     store.set(KEYS.levels, levels);
     store.set(KEYS.focus, focus);
     store.set(KEYS.progress, progress);
+    store.set(KEYS.cats, categories);
+    store.set(KEYS.courseCat, courseCat);
+    store.set(KEYS.catFilter, catFilter);
   };
 
   // ───────────────────────── lookups ─────────────────────────
@@ -1230,6 +1248,52 @@
   function courseLink(c, cls = "title") {
     return h("a", { class: cls, href: safeUrl(c.url), target: "_blank", rel: "noopener noreferrer", text: c.title + " ↗" });
   }
+  // ── Categories
+  const catById = (id) => categories.find((c) => c.id === id);
+  const DOMAIN_TO_CAT = { ai: "ai", aifin: "ai", cs: "cs", consult: "consult", fin: "fin" };
+  function guessCategory(c) {
+    const t = `${c.title} ${c.provider || ""} ${c.url || ""}`.toLowerCase();
+    if (/\b(degrees?|master'?s|master of|msc|m\.sc|mba|bachelor'?s?|bachelor of|bsc|phd|postgraduate|graduate (certificate|diploma))\b/.test(t)) return "degree";
+    if (/enterprise[- ]architect|togaf|archimate|zachman|business architecture/.test(t)) return "ea";
+    return DOMAIN_TO_CAT[courseDomainId(c)] || "other";
+  }
+  const categoryOf = (c) => (catById(courseCat[c.id]) ? courseCat[c.id] : guessCategory(c));
+  function newCategory() {
+    const name = (prompt("Name of the new category (e.g. Cloud, Product, Languages):") || "").trim();
+    if (!name) return null;
+    const existing = categories.find((c) => c.name.toLowerCase() === name.toLowerCase());
+    if (existing) return existing.id;
+    const palette = ["#ea580c", "#65a30d", "#9333ea", "#0891b2", "#be185d", "#4f46e5", "#ca8a04"];
+    const used = new Set(categories.map((c) => c.color));
+    const cat = { id: "cat-" + slugify(name) + "-" + Date.now().toString(36).slice(-3), name, color: palette.find((x) => !used.has(x)) || palette[categories.length % palette.length] };
+    categories.push(cat); save(); return cat.id;
+  }
+  function catSelect(c) {
+    const cur = categoryOf(c), cat = catById(cur);
+    const sel = h("select", { class: "cat-select", style: `--cat:${cat.color}`, "aria-label": "Category for " + c.title, title: "Category",
+      onchange: (e) => {
+        let v = e.target.value;
+        if (v === "__new") { v = newCategory(); if (!v) { e.target.value = cur; return; } }
+        courseCat[c.id] = v; save(); renderLog();
+      } });
+    categories.forEach((k) => sel.append(h("option", { value: k.id, selected: k.id === cur || null, text: k.name })));
+    sel.append(h("option", { value: "__new", text: "＋ New category…" }));
+    return sel;
+  }
+  function renderCatFilter(all) {
+    const box = $("cat-filter"); box.textContent = "";
+    const active = all.filter((c) => c.status !== "none");
+    const count = (id) => active.filter((c) => categoryOf(c) === id).length;
+    if (catFilter !== "all" && !catById(catFilter)) catFilter = "all";
+    const chip = (id, label, n, color) => h("button", {
+      class: "cat-chip" + (catFilter === id ? " on" : ""), style: color ? `--cat:${color}` : null, "aria-pressed": catFilter === id,
+      onclick: () => { catFilter = id; save(); renderLog(); } },
+      color ? h("span", { class: "cat-dot" }) : null, label, h("span", { class: "cat-n", text: String(n) }));
+    box.append(chip("all", "All", active.length));
+    categories.forEach((k) => { const n = count(k.id); if (n || k.pinned || catFilter === k.id) box.append(chip(k.id, k.name, n, k.color)); });
+    box.append(h("button", { class: "cat-chip add", text: "＋ Category", onclick: () => { const id = newCategory(); if (id) { catFilter = id; save(); renderLog(); } } }));
+  }
+
   function courseMeta(c) {
     return [c.kind === "project" ? "Project" : null, c.provider, domainById[courseDomainId(c)]?.name].filter(Boolean).join(" · ");
   }
@@ -1251,7 +1315,7 @@
           onchange: (e) => setPct(c, +e.target.value) }));
     }
     return h("article", { class: "now-card", style: `--c:${color}` },
-      h("div", { class: "now-top" }, h("div", null, courseLink(c), h("div", { class: "meta", text: courseMeta(c) })), pctEl),
+      h("div", { class: "now-top" }, h("div", null, courseLink(c), h("div", { class: "meta-row" }, catSelect(c), h("span", { class: "meta", text: courseMeta(c) }))), pctEl),
       h("div", { class: "progress big" }, barFill),
       step,
       skills.length ? h("p", { class: "meta skills-line", text: "Skills: " + skills.slice(0, 5).join(", ") + (skills.length > 5 ? ` +${skills.length - 5} more` : "") })
@@ -1274,7 +1338,7 @@
     const meta = kind === "done" && c.end ? `${courseMeta(c)} · finished ${c.end}` : courseMeta(c);
     return h("div", { class: "crow", style: `--c:${color}` },
       h("span", { class: "crow-dot" }),
-      h("div", { class: "crow-main" }, courseLink(c), h("div", { class: "meta", text: meta })),
+      h("div", { class: "crow-main" }, courseLink(c), h("div", { class: "meta-row" }, catSelect(c), h("span", { class: "meta", text: meta }))),
       h("div", { class: "crow-actions" }, ...actions));
   }
   function renderLog() {
@@ -1290,10 +1354,18 @@
       statTile(done.length, "Completed"),
       statTile(cnt(2), "Skills gained", `${cnt(3)} applied in projects`),
       statTile(pctText(cnt(1) / total), "Of the map explored", `${pctText(cnt(3) / total)} deep`));
+    renderCatFilter(all);
+    const inCat = (c) => catFilter === "all" || categoryOf(c) === catFilter;
     const fill = (id, items, make, emptyText) => {
       const el = $(id); el.textContent = "";
-      if (items.length) items.forEach((c) => el.append(make(c)));
-      else el.append(h("p", { class: "empty", text: emptyText }));
+      items = items.filter(inCat);
+      if (!items.length) { el.append(h("p", { class: "empty", text: catFilter === "all" ? emptyText : `Nothing in ${catById(catFilter).name} here.` })); return; }
+      const groups = categories.map((k) => [k, items.filter((c) => categoryOf(c) === k.id)]).filter(([, cs]) => cs.length);
+      if (catFilter !== "all" || groups.length < 2) { items.forEach((c) => el.append(make(c))); return; }
+      groups.forEach(([k, cs]) => {
+        el.append(h("h3", { class: "cat-head", style: `--cat:${k.color}` }, h("span", { class: "cat-dot" }), k.name, h("span", { class: "cat-n", text: String(cs.length) })));
+        cs.forEach((c) => el.append(make(c)));
+      });
     };
     fill("now-list", now, nowCard, "Nothing in progress. Paste a course link above, or press Start on something in Up next.");
     fill("next-list", next, (c) => compactRow(c, "next"), "Nothing saved for later.");
@@ -1348,7 +1420,7 @@
   });
 
   $("export").addEventListener("click", () => {
-    const blob = new Blob([JSON.stringify({ version: 2, exported: today(), log, courseStatus, learned: [...manualLearned], levels, focus, progress, custom }, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify({ version: 2, exported: today(), log, courseStatus, learned: [...manualLearned], levels, focus, progress, categories, courseCat, custom }, null, 2)], { type: "application/json" });
     const a = h("a", { href: URL.createObjectURL(blob), download: `learning-path-${today()}.json` });
     document.body.append(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
@@ -1366,6 +1438,8 @@
       if (data.levels && typeof data.levels === "object") Object.entries(data.levels).forEach(([id, l]) => { if (l >= 1 && l <= 4) levels[id] = Math.max(levels[id] || 0, l); });
       if (typeof data.focus === "string") focus = data.focus;
       if (data.progress && typeof data.progress === "object") progress = { ...progress, ...data.progress };
+      if (Array.isArray(data.categories)) data.categories.forEach((k) => { if (k && k.id && k.name && !catById(k.id)) categories.push(k); });
+      if (data.courseCat && typeof data.courseCat === "object") courseCat = { ...courseCat, ...data.courseCat };
       if (data.custom) {
         arr(data.custom.domains).forEach((d) => registerDomain(d) && custom.domains.push(d));
         arr(data.custom.topics).forEach((t) => registerTopic(t) && custom.topics.push(t));
@@ -1392,6 +1466,8 @@
       const id = hit.course.id, cur = courseStatus[id] || "none";
       if ((rank[e.status] || 0) > rank[cur]) courseStatus[id] = e.status;
       const oldKey = "log:" + e.id;
+      if (courseCat[oldKey] && !courseCat[id]) courseCat[id] = courseCat[oldKey];
+      delete courseCat[oldKey];
       if (progress[oldKey] && !progress[id]) progress[id] = progress[oldKey];
       delete progress[oldKey];
       (e.concepts || []).forEach((cid) => { if (!levels[cid] && e.status === "completed") levels[cid] = 2; });
