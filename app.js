@@ -5,7 +5,7 @@
   const SVGNS = "http://www.w3.org/2000/svg";
 
   // ───────────────────────── storage (per browser) ─────────────────────────
-  const KEYS = { status: "skillmap.courseStatus", learned: "skillmap.learned", log: "skillmap.log", custom: "skillmap.custom", levels: "skillmap.levels", focus: "skillmap.focus", progress: "skillmap.progress", tab: "skillmap.tab", cats: "skillmap.categories", courseCat: "skillmap.courseCategory", catFilter: "skillmap.catFilter" };
+  const KEYS = { status: "skillmap.courseStatus", learned: "skillmap.learned", log: "skillmap.log", custom: "skillmap.custom", levels: "skillmap.levels", focus: "skillmap.focus", progress: "skillmap.progress", tab: "skillmap.tab", cats: "skillmap.categories", courseCat: "skillmap.courseCategory", catFilter: "skillmap.catFilter", layout: "skillmap.layout" };
   const store = {
     get(k, fallback) {
       try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
@@ -33,7 +33,8 @@
   if (!Array.isArray(categories) || !categories.length) categories = DEFAULT_CATS.map((c) => ({ ...c }));
   DEFAULT_CATS.forEach((d) => { if (!categories.some((c) => c.id === d.id)) categories.push({ ...d }); });
   let courseCat = store.get(KEYS.courseCat, {}) || {};        // course id → category id (when you change it)
-  let catFilter = store.get(KEYS.catFilter, "all");         // depth track: "t:<topic>" or "d:<domain>"
+  let catFilter = store.get(KEYS.catFilter, "all");
+  let layoutPref = store.get(KEYS.layout, "columns");        // "columns" (board by category) or "list"         // depth track: "t:<topic>" or "d:<domain>"
   if (!Array.isArray(log)) log = [];
   const save = () => {
     store.set(KEYS.status, courseStatus);
@@ -46,6 +47,7 @@
     store.set(KEYS.cats, categories);
     store.set(KEYS.courseCat, courseCat);
     store.set(KEYS.catFilter, catFilter);
+    store.set(KEYS.layout, layoutPref);
   };
 
   // ───────────────────────── lookups ─────────────────────────
@@ -1355,6 +1357,13 @@
       statTile(cnt(2), "Skills gained", `${cnt(3)} applied in projects`),
       statTile(pctText(cnt(1) / total), "Of the map explored", `${pctText(cnt(3) / total)} deep`));
     renderCatFilter(all);
+    const wide = window.matchMedia("(min-width: 980px)").matches;
+    document.querySelectorAll(".lt-btn").forEach((b) => b.classList.toggle("on", b.dataset.layout === layoutPref));
+    document.querySelector(".layout-toggle").hidden = !wide;
+    const board = wide && layoutPref === "columns" && catFilter === "all" && all.some((c) => c.status !== "none");
+    document.body.classList.toggle("board-mode", wide);
+    $("board").hidden = !board; $("list-view").hidden = board;
+    if (board) renderBoard(now, next, done);
     const inCat = (c) => catFilter === "all" || categoryOf(c) === catFilter;
     const fill = (id, items, make, emptyText) => {
       const el = $(id); el.textContent = "";
@@ -1373,6 +1382,26 @@
     $("done-count").textContent = `(${done.length})`;
     $("log-count").textContent = now.length;
   }
+
+  // Columns layout: one column per category, each with Learning now / Up next / Completed
+  function renderBoard(now, next, done) {
+    const el = $("board"); el.textContent = "";
+    categories.forEach((k) => {
+      const mine = (list) => list.filter((c) => categoryOf(c) === k.id);
+      const n = mine(now), u = mine(next), d = mine(done);
+      if (!n.length && !u.length && !d.length) return;
+      const col = h("section", { class: "board-col card", style: `--cat:${k.color}` },
+        h("h2", { class: "board-head" }, h("span", { class: "cat-dot" }), k.name,
+          h("span", { class: "cat-n", text: `${n.length} now · ${u.length} next · ${d.length} done` })));
+      if (n.length) col.append(h("h3", { class: "board-sub", text: "Learning now" }), ...n.map(nowCard));
+      if (u.length) col.append(h("h3", { class: "board-sub", text: "Up next" }), h("div", { class: "compact-list" }, ...u.map((c) => compactRow(c, "next"))));
+      if (d.length) col.append(h("details", { class: "board-done" }, h("summary", { text: `Completed (${d.length})` }),
+        h("div", { class: "compact-list" }, ...d.map((c) => compactRow(c, "done")))));
+      el.append(col);
+    });
+  }
+  document.querySelectorAll(".lt-btn").forEach((b) => b.addEventListener("click", () => { layoutPref = b.dataset.layout; save(); renderLog(); }));
+  window.matchMedia("(min-width: 980px)").addEventListener("change", () => renderLog());
 
   // ── Quick add: paste a link → Start learning / Save for later
   const q = { url: $("q-url"), title: $("q-title"), preview: $("q-preview"), known: $("q-known"), skills: $("q-skills") };
