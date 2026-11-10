@@ -20,6 +20,8 @@ window.LEARNING_DATA = {
       summary: "Teaching computers to learn patterns from data, from classic machine learning to deep learning and large language models." },
     { id: "fin", name: "Finance", color: "#0f9f6e", anchor: [460, -60],
       summary: "How money, markets and companies work: valuing assets, managing risk, and building portfolios." },
+    { id: "ea", name: "Enterprise Architecture", color: "#0369a1", anchor: [660, -600],
+      summary: "Designing how an organization's business, data, applications and technology fit together, and planning how to get from today's state to the target. TOGAF is the most widely used framework." },
     { id: "consult", name: "Consulting & Communication", color: "#db2777", anchor: [-620, 560],
       summary: "The other half of a forward deployed engineer: breaking down messy client problems, communicating answers to executives, running discovery with stakeholders, and making the business case for AI." },
     { id: "aifin", name: "AI × Finance", color: "#e08a00", anchor: [0, 330],
@@ -42,10 +44,38 @@ window.LEARNING_DATA = {
     { id: "con-problem", domain: "consult", name: "Structured Problem Solving" },
     { id: "con-comm", domain: "consult", name: "Executive Communication" },
     { id: "con-client", domain: "consult", name: "Client & Stakeholder Skills" },
-    { id: "con-aistrat", domain: "consult", name: "AI Business Strategy" }
+    { id: "con-aistrat", domain: "consult", name: "AI Business Strategy" },
+    { id: "ea-framework", domain: "ea", name: "TOGAF & the ADM" },
+    { id: "ea-domains", domain: "ea", name: "Architecture Domains (BDAT)" },
+    { id: "ea-modeling", domain: "ea", name: "Modeling & Planning" },
+    { id: "ea-governance", domain: "ea", name: "Architecture Governance" }
   ],
 
   concepts: [
+    // ── Enterprise Architecture · TOGAF & the ADM
+    { id: "togaf", topic: "ea-framework", label: "TOGAF Standard", definition: "The Open Group's framework for enterprise architecture: a method (the ADM), a content framework, and guidance for governing and evolving architecture across an organization." },
+    { id: "adm", topic: "ea-framework", label: "Architecture Development Method (ADM)", definition: "TOGAF's core cycle: Preliminary, A Vision, B Business, C Information Systems, D Technology, E Opportunities & Solutions, F Migration Planning, G Implementation Governance, H Change Management, with Requirements Management at the center.", related: ["togaf"] },
+    { id: "arch-content", topic: "ea-framework", label: "Deliverables, artifacts & building blocks", definition: "TOGAF's content framework: deliverables are formal work products, artifacts are catalogs, matrices and diagrams, and building blocks are reusable components of the architecture.", related: ["adm"] },
+    { id: "enterprise-continuum", topic: "ea-framework", label: "Enterprise Continuum", definition: "A way to classify architecture and solution assets from generic (foundation) to organization-specific, so teams can reuse what already exists.", related: ["togaf"] },
+    { id: "arch-repository", topic: "ea-framework", label: "Architecture Repository", definition: "Where an organization stores its architecture assets: the metamodel, landscapes, reference models, standards and governance records.", related: ["enterprise-continuum"] },
+
+    // ── Enterprise Architecture · Domains (BDAT)
+    { id: "business-arch", topic: "ea-domains", label: "Business architecture", definition: "How the organization creates value: its strategy, capabilities, value streams, organization structure and key business processes.", related: ["adm"] },
+    { id: "data-arch", topic: "ea-domains", label: "Data architecture", definition: "The structure of an organization's data assets and how data flows, is owned and is governed across systems.", related: ["databases", "business-arch"] },
+    { id: "application-arch", topic: "ea-domains", label: "Application architecture", definition: "The applications an organization runs, what each is responsible for, and how they integrate (often through APIs).", related: ["apis", "data-arch"] },
+    { id: "technology-arch", topic: "ea-domains", label: "Technology architecture", definition: "The infrastructure the applications run on: platforms, cloud, networks, security and hosting standards.", related: ["system-design", "application-arch", "ai-architecture"] },
+
+    // ── Enterprise Architecture · Modeling & Planning
+    { id: "archimate", topic: "ea-modeling", label: "ArchiMate modeling", definition: "The Open Group's visual modeling language for enterprise architecture, with layers for business, application and technology and the relationships between them.", related: ["togaf", "business-arch"] },
+    { id: "capability-mapping", topic: "ea-modeling", label: "Capability-based planning", definition: "Describing what the business must be able to do (capabilities), assessing each one, and planning investments around the gaps.", related: ["business-arch", "use-case-prioritization"] },
+    { id: "value-streams", topic: "ea-modeling", label: "Value streams", definition: "The end-to-end stages through which an organization delivers value to a customer, used to see which capabilities matter most.", related: ["capability-mapping"] },
+    { id: "migration-planning", topic: "ea-modeling", label: "Roadmaps & migration planning", definition: "Comparing baseline and target architectures (gap analysis), then sequencing the work into transition architectures and a roadmap.", related: ["adm", "proposals"] },
+
+    // ── Enterprise Architecture · Governance
+    { id: "arch-principles", topic: "ea-governance", label: "Architecture principles", definition: "Agreed rules that guide architecture decisions, each with a rationale and implications, e.g. 'Data is an asset'.", related: ["togaf"] },
+    { id: "arch-governance", topic: "ea-governance", label: "Architecture governance", definition: "How architecture decisions are made, checked and enforced: architecture boards, compliance reviews, contracts and dispensations.", related: ["arch-principles", "ai-governance"] },
+    { id: "ea-stakeholders", topic: "ea-governance", label: "Stakeholders, concerns & viewpoints", definition: "Identifying who cares about the architecture, what they worry about, and showing each group a view that answers their concerns.", related: ["stakeholder-mgmt", "arch-governance"] },
+
     // ── Consulting · Structured Problem Solving
     { id: "mece", topic: "con-problem", label: "MECE thinking", definition: "Mutually Exclusive, Collectively Exhaustive: splitting a problem into parts that don't overlap and together cover everything, so nothing is double-counted or missed." },
     { id: "issue-tree", topic: "con-problem", label: "Issue trees", definition: "Breaking a big question into smaller sub-questions, branch by branch, until each one can be answered with analysis.", related: ["mece", "trees-graphs"] },
@@ -185,7 +215,43 @@ window.LEARNING_DATA = {
     { id: "fin-llm", domain: "aifin", label: "LLMs for finance", definition: "Applying LLMs and RAG to research reports, filings and customer service, such as summarizing a 10-K or answering questions over it.", related: ["rag", "statements", "agents", "mcp"] }
   ],
 
+  // Certification paths you can add on the My courses page. Links point only to official sites;
+  // your own study materials are recognized by the `match` keywords when you paste their links.
+  certifications: [
+    { id: "togaf10", name: "TOGAF® Enterprise Architecture (10th Edition)", short: "TOGAF 10", provider: "The Open Group",
+      url: "https://www.opengroup.org/togaf", category: "ea", match: ["togaf", "ogea"],
+      exams: [
+        { id: "foundation", code: "OGEA-101", name: "Part 1: TOGAF Enterprise Architecture Foundation",
+          format: "40 multiple-choice questions · 60 minutes · closed book · pass mark 60%", url: "https://certification.opengroup.org/node/14",
+          covers: ["togaf", "adm", "arch-content", "enterprise-continuum", "arch-repository", "arch-principles", "arch-governance", "ea-stakeholders"],
+          steps: [
+            "Read the TOGAF Standard fundamental content: introduction and core concepts",
+            "Learn every ADM phase (Preliminary, A–H, Requirements Management): purpose, inputs and outputs",
+            "Learn the content framework: deliverables, artifacts and building blocks",
+            "Learn the Enterprise Continuum and the Architecture Repository",
+            "Learn architecture principles, governance and stakeholder management",
+            "Take full timed practice tests until you score 75%+ consistently",
+            "Book the exam"
+          ] },
+        { id: "practitioner", code: "OGEA-102", name: "Part 2: TOGAF Enterprise Architecture Practitioner",
+          format: "8 scenario questions · 90 minutes · open book · gradient scoring · pass mark 60%", url: "https://certification.opengroup.org/node/14",
+          covers: ["adm", "business-arch", "data-arch", "application-arch", "technology-arch", "capability-mapping", "value-streams", "migration-planning"],
+          steps: [
+            "Pass Part 1 first (or plan for the combined OGEA-103 exam)",
+            "Practice applying the ADM to scenarios: choose the best answer, not just a correct one",
+            "Learn how to tailor the ADM and use the series guides (e.g. business scenarios, capability-based planning)",
+            "Practice finding things fast in the standard (the exam is open book)",
+            "Do timed scenario practice: about 11 minutes per question",
+            "Book the exam"
+          ] }
+      ] }
+  ],
+
   courses: [
+    // Enterprise Architecture (official source only; add your own study materials on My courses)
+    { id: "c-togaf-standard", title: "The TOGAF Standard, 10th Edition (official)", provider: "The Open Group", url: "https://www.opengroup.org/togaf", cost: "Free to read (registration)", level: "Intermediate",
+      covers: ["togaf", "adm", "arch-content", "enterprise-continuum", "arch-repository", "business-arch", "data-arch", "application-arch", "technology-arch", "migration-planning", "arch-principles", "arch-governance", "ea-stakeholders", "capability-mapping"] },
+
     // Consulting & Communication
     { id: "c-emory-present", title: "Consulting Presentations and Storytelling", provider: "Coursera / Emory University", url: "https://www.coursera.org/learn/management-consulting-presentations", cost: "Subscription (7-day trial / financial aid)", level: "Beginner",
       covers: ["pyramid-principle", "storyline", "data-storytelling", "slide-design", "exec-presence"] },

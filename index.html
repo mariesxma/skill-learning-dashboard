@@ -8,7 +8,7 @@
     // Apply the saved theme before the page paints, so there is no flash of the wrong colors.
     try { var t = JSON.parse(localStorage.getItem("skillmap.theme")); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=12" />
+  <link rel="stylesheet" href="styles.css?v=13" />
 </head>
 <body>
   <header class="topbar">
@@ -96,6 +96,8 @@
           <button type="button" class="lt-btn" data-layout="list" title="Everything in one list">☰ List</button>
         </div>
       </div>
+
+      <section id="cert-section" class="card cert-section" aria-label="Certifications"></section>
 
       <div id="board" class="board" hidden></div>
 
@@ -189,7 +191,7 @@
     </section>
   </main>
 
-  <script src="data.js?v=12"></script>
-  <script src="app.js?v=12"></script>
+  <script src="data.js?v=13"></script>
+  <script src="app.js?v=13"></script>
 </body>
 </html>

@@ -389,3 +389,42 @@ body[data-view="log"] .theme-toggle { margin-left: auto; }
 body[data-view="graph"] .theme-toggle { order: 3; }
 body[data-view="graph"] .stats { order: 4; }
 body[data-view="graph"] .theme-toggle { margin-left: auto; }
+
+/* ── Certifications ── */
+.cert-section { display: grid; gap: 12px; }
+.cert-section .sec-head { margin-bottom: 0; }
+.cert-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 14px; align-items: start; }
+.cert-card { border: 1px solid var(--border); border-top: 4px solid var(--cat); border-radius: 12px; padding: 12px 14px; display: grid; gap: 10px; }
+.cert-top { display: flex; justify-content: space-between; gap: 10px; align-items: start; }
+.cert-card .title { font-weight: 800; font-size: 15px; text-decoration: none; }
+.cert-card .meta { color: var(--muted); font-size: 12px; margin: 0; }
+.exam { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; display: grid; gap: 6px; background: color-mix(in srgb, var(--cat) 4%, var(--surface)); }
+.exam.passed { border-color: color-mix(in srgb, #0f9f6e 50%, var(--border)); }
+.exam-top { display: flex; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; align-items: center; }
+.exam-name { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; font-weight: 700; font-size: 14px; }
+.exam-name a { text-decoration: none; }
+.exam-code { font-size: 11px; font-weight: 800; color: var(--cat); border: 1px solid var(--cat); border-radius: 5px; padding: 0 5px; }
+.exam-ctrls { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.exam-ctrls select, .exam-ctrls input { font-size: 12px; padding: 4px 8px; }
+.exam-status.passed { color: #0f9f6e; font-weight: 700; }
+.exam-status.booked { color: #c07600; font-weight: 700; }
+.exam-when { font-size: 12px; font-weight: 700; color: var(--muted); }
+.exam-when.soon { color: #c07600; }
+.exam-when.late { color: #d33; }
+.exam-when.ok { color: #0f9f6e; }
+.exam-steps summary { cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 12px; font-weight: 700; color: var(--muted); }
+.step { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: start; font-size: 13px; padding: 4px 0; cursor: pointer; }
+.step input { margin-top: 3px; }
+.step.done span { color: var(--muted); text-decoration: line-through; }
+.step-x { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 15px; line-height: 1; opacity: 0; }
+.step:hover .step-x, .step-x:focus { opacity: 1; }
+.step-add input { width: 100%; font-size: 12px; padding: 5px 8px; margin-top: 4px; }
+.cert-mats h4 { margin: 0 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.mat { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; padding: 3px 0; }
+.mat a { font-weight: 600; text-decoration: none; }
+.cert-form { display: grid; gap: 8px; border: 1px dashed var(--border); border-radius: 10px; padding: 10px; }
+.cert-form select, .cert-custom input, .cert-custom textarea { width: 100%; }
+.cert-custom { display: grid; gap: 8px; }
+.cert-custom .row > input { flex: 1 1 180px; }
+.cert-hint { color: var(--accent); font-weight: 600; }
+@media (max-width: 760px) { .cert-grid { grid-template-columns: 1fr; } }

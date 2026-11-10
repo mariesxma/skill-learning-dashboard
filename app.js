@@ -5,7 +5,7 @@
   const SVGNS = "http://www.w3.org/2000/svg";
 
   // ───────────────────────── storage (per browser) ─────────────────────────
-  const KEYS = { status: "skillmap.courseStatus", learned: "skillmap.learned", log: "skillmap.log", custom: "skillmap.custom", levels: "skillmap.levels", focus: "skillmap.focus", progress: "skillmap.progress", tab: "skillmap.tab", cats: "skillmap.categories", courseCat: "skillmap.courseCategory", catFilter: "skillmap.catFilter", layout: "skillmap.layout" };
+  const KEYS = { status: "skillmap.courseStatus", learned: "skillmap.learned", log: "skillmap.log", custom: "skillmap.custom", levels: "skillmap.levels", focus: "skillmap.focus", progress: "skillmap.progress", tab: "skillmap.tab", cats: "skillmap.categories", courseCat: "skillmap.courseCategory", catFilter: "skillmap.catFilter", layout: "skillmap.layout", certs: "skillmap.certs" };
   const store = {
     get(k, fallback) {
       try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
@@ -34,7 +34,10 @@
   DEFAULT_CATS.forEach((d) => { if (!categories.some((c) => c.id === d.id)) categories.push({ ...d }); });
   let courseCat = store.get(KEYS.courseCat, {}) || {};        // course id → category id (when you change it)
   let catFilter = store.get(KEYS.catFilter, "all");
-  let layoutPref = store.get(KEYS.layout, "columns");        // "columns" (board by category) or "list"         // depth track: "t:<topic>" or "d:<domain>"
+  let layoutPref = store.get(KEYS.layout, "columns");
+  // Certification paths you are working on (copied from a template or made by you)
+  let certs = store.get(KEYS.certs, []);
+  if (!Array.isArray(certs)) certs = [];        // "columns" (board by category) or "list"         // depth track: "t:<topic>" or "d:<domain>"
   if (!Array.isArray(log)) log = [];
   const save = () => {
     store.set(KEYS.status, courseStatus);
@@ -48,6 +51,7 @@
     store.set(KEYS.courseCat, courseCat);
     store.set(KEYS.catFilter, catFilter);
     store.set(KEYS.layout, layoutPref);
+    store.set(KEYS.certs, certs);
   };
 
   // ───────────────────────── lookups ─────────────────────────
@@ -186,6 +190,9 @@
         if (m.done && m.covers.includes(conceptId)) out.push({ ...c, title: `${shortTitle(c.title)} · ${m.title}` });
       });
     });
+    certs.forEach((cert) => cert.exams.forEach((ex) => {
+      if (ex.status === "passed" && (ex.covers || []).includes(conceptId)) out.push({ title: `${cert.short || cert.name} · ${ex.code || ex.name} (passed)`, kind: "cert" });
+    }));
     return out;
   }
   function setModuleDone(courseId, moduleId, done) {
@@ -982,6 +989,10 @@
     "stakeholder management": ["stakeholder-mgmt"], "proposal": ["proposals"], "scoping": ["proposals"], "use case": ["use-case-prioritization"],
     "business case": ["business-case"], "roi": ["business-case"], "change management": ["change-mgmt"], "adoption": ["change-mgmt"],
     "governance": ["ai-governance"], "responsible ai": ["ai-governance"], "ai strategy": ["use-case-prioritization", "business-case"], "for everyone": ["use-case-prioritization"],
+    "togaf": ["togaf", "adm"], "ogea": ["togaf", "adm"], "enterprise architect": ["togaf", "business-arch"], "archimate": ["archimate"],
+    "capabilit": ["capability-mapping"], "value stream": ["value-streams"], "business architecture": ["business-arch"], "data architecture": ["data-arch"],
+    "application architecture": ["application-arch"], "technology architecture": ["technology-arch"], "roadmap": ["migration-planning"],
+    "architecture governance": ["arch-governance"], "architecture principles": ["arch-principles"],
     "customer discovery": ["fde"], "stakeholder": ["fde"], "fine-tun": ["fine-tuning"], "embedding": ["embedding"]
   };
   const escapeRe = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -1252,7 +1263,7 @@
   }
   // ── Categories
   const catById = (id) => categories.find((c) => c.id === id);
-  const DOMAIN_TO_CAT = { ai: "ai", aifin: "ai", cs: "cs", consult: "consult", fin: "fin" };
+  const DOMAIN_TO_CAT = { ai: "ai", aifin: "ai", cs: "cs", consult: "consult", fin: "fin", ea: "ea" };
   function guessCategory(c) {
     const t = `${c.title} ${c.provider || ""} ${c.url || ""}`.toLowerCase();
     if (/\b(degrees?|master'?s|master of|msc|m\.sc|mba|bachelor'?s?|bachelor of|bsc|phd|postgraduate|graduate (certificate|diploma))\b/.test(t)) return "degree";
@@ -1353,10 +1364,11 @@
     const stats = $("dash-stats"); stats.textContent = "";
     stats.append(
       statTile(now.length, "Learning now"),
-      statTile(done.length, "Completed"),
+      statTile(done.length, "Completed", (() => { const n = certs.reduce((a, c) => a + c.exams.filter((e) => e.status === "passed").length, 0), t = certs.reduce((a, c) => a + c.exams.length, 0); return t ? `${n} of ${t} certification exams passed` : null; })()),
       statTile(cnt(2), "Skills gained", `${cnt(3)} applied in projects`),
       statTile(pctText(cnt(1) / total), "Of the map explored", `${pctText(cnt(3) / total)} deep`));
     renderCatFilter(all);
+    renderCerts();
     const wide = window.matchMedia("(min-width: 980px)").matches;
     document.querySelectorAll(".lt-btn").forEach((b) => b.classList.toggle("on", b.dataset.layout === layoutPref));
     document.querySelector(".layout-toggle").hidden = !wide;
@@ -1403,6 +1415,141 @@
   document.querySelectorAll(".lt-btn").forEach((b) => b.addEventListener("click", () => { layoutPref = b.dataset.layout; save(); renderLog(); }));
   window.matchMedia("(min-width: 980px)").addEventListener("change", () => renderLog());
 
+  // ───────────────────────── Certifications ─────────────────────────
+  const EXAM_STATUS = { todo: "Not started", preparing: "Preparing", booked: "Booked", passed: "Passed" };
+  let certFormOpen = false;
+  const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  function certKeywords(cert) {
+    const words = [...(cert.match || []), cert.short, ...cert.exams.map((e) => e.code)].filter(Boolean).map((w) => String(w).toLowerCase().trim()).filter((w) => w.length >= 3);
+    return [...new Set(words)];
+  }
+  const certMatches = (cert, text) => { const t = (text || "").toLowerCase(); return certKeywords(cert).some((w) => t.includes(w)); };
+  const certCourses = (cert) => allCourses().filter((c) => c.status !== "none" && certMatches(cert, `${c.title} ${c.url}`));
+  function addCertFromTemplate(templateId) {
+    const t = (D.certifications || []).find((x) => x.id === templateId);
+    if (!t) return;
+    if (certs.some((c) => c.templateId === t.id)) return;
+    certs.push({
+      id: newId(), templateId: t.id, name: t.name, short: t.short, provider: t.provider, url: t.url, category: t.category, match: [...(t.match || [])],
+      exams: t.exams.map((e) => ({ id: e.id, code: e.code, name: e.name, format: e.format, url: e.url, covers: [...(e.covers || [])],
+        status: "todo", date: "", steps: e.steps.map((text) => ({ text, done: false })) }))
+    });
+    save(); renderLog(); refreshAll();
+  }
+  function examDays(ex) {
+    if (!ex.date) return null;
+    const ms = new Date(ex.date + "T00:00:00") - new Date(today() + "T00:00:00");
+    return Math.round(ms / 86400000);
+  }
+  function examRow(cert, ex) {
+    const done = ex.steps.filter((x) => x.done).length, total = ex.steps.length;
+    const days = examDays(ex);
+    let when = null;
+    if (ex.status === "passed") when = h("span", { class: "exam-when ok", text: ex.date ? `✓ Passed ${ex.date}` : "✓ Passed" });
+    else if (days != null) when = h("span", { class: "exam-when" + (days < 0 ? " late" : days <= 14 ? " soon" : ""),
+      text: days > 1 ? `in ${days} days` : days === 1 ? "tomorrow" : days === 0 ? "today" : `${-days} days ago: update the status` });
+    const statusSel = h("select", { class: "exam-status " + ex.status, "aria-label": "Status for " + ex.name,
+      onchange: (e) => { ex.status = e.target.value; if (ex.status === "passed" && !ex.date) ex.date = today(); save(); refreshAll(); } });
+    Object.entries(EXAM_STATUS).forEach(([k, v]) => statusSel.append(h("option", { value: k, selected: k === ex.status || null, text: v })));
+    const dateIn = h("input", { type: "date", value: ex.date || "", "aria-label": (ex.status === "passed" ? "Date passed for " : "Exam date for ") + ex.name,
+      onchange: (e) => { ex.date = e.target.value; save(); renderLog(); } });
+    const stepsBox = h("details", { class: "exam-steps", open: ex.status === "preparing" || ex.status === "booked" || null },
+      h("summary", null, h("span", { text: `Study plan · ${done}/${total}` }),
+        h("span", { class: "progress mini" }, h("div", { style: `width:${total ? (done / total) * 100 : 0}%;background:var(--cat)` }))));
+    ex.steps.forEach((st, i) => stepsBox.append(h("label", { class: "step" + (st.done ? " done" : "") },
+      h("input", { type: "checkbox", checked: st.done || null, onchange: (e) => {
+        st.done = e.target.checked;
+        if (st.done && ex.status === "todo") ex.status = "preparing";
+        save(); renderLog();
+      } }),
+      h("span", { text: st.text }),
+      h("button", { type: "button", class: "step-x", title: "Remove step", "aria-label": "Remove step", text: "×", onclick: (e) => { e.preventDefault(); ex.steps.splice(i, 1); save(); renderLog(); } }))));
+    const stepIn = h("input", { type: "text", placeholder: "Add a study step…", "aria-label": "New study step",
+      onkeydown: (e) => { if (e.key === "Enter" && e.target.value.trim()) { e.preventDefault(); ex.steps.push({ text: e.target.value.trim(), done: false }); save(); renderLog(); } } });
+    stepsBox.append(h("div", { class: "step-add" }, stepIn));
+    return h("div", { class: "exam" + (ex.status === "passed" ? " passed" : "") },
+      h("div", { class: "exam-top" },
+        h("div", { class: "exam-name" }, ex.code ? h("span", { class: "exam-code", text: ex.code }) : null,
+          ex.url ? h("a", { href: safeUrl(ex.url), target: "_blank", rel: "noopener noreferrer", text: ex.name + " ↗" }) : h("span", { text: ex.name })),
+        h("div", { class: "exam-ctrls" }, statusSel, dateIn, when)),
+      ex.format ? h("p", { class: "meta", text: ex.format }) : null,
+      stepsBox);
+  }
+  function certCard(cert) {
+    const cat = catById(cert.category) || catById("other");
+    const passed = cert.exams.filter((e) => e.status === "passed").length;
+    const mats = certCourses(cert);
+    const catSel = h("select", { class: "cat-select", style: `--cat:${cat.color}`, "aria-label": "Category for " + cert.name,
+      onchange: (e) => { let v = e.target.value; if (v === "__new") { v = newCategory(); if (!v) { e.target.value = cert.category; return; } } cert.category = v; save(); renderLog(); } });
+    categories.forEach((k) => catSel.append(h("option", { value: k.id, selected: k.id === cat.id || null, text: k.name })));
+    catSel.append(h("option", { value: "__new", text: "＋ New category…" }));
+    return h("article", { class: "cert-card", style: `--cat:${cat.color}` },
+      h("div", { class: "cert-top" },
+        h("div", null,
+          cert.url ? h("a", { class: "title", href: safeUrl(cert.url), target: "_blank", rel: "noopener noreferrer", text: "🎓 " + cert.name + " ↗" }) : h("span", { class: "title", text: "🎓 " + cert.name }),
+          h("div", { class: "meta-row" }, catSel, h("span", { class: "meta", text: [cert.provider, `${passed}/${cert.exams.length} exams passed`].filter(Boolean).join(" · ") }))),
+        h("button", { class: "btn small link", text: "Remove", onclick: () => { if (confirm(`Remove the ${cert.short || cert.name} certification path?`)) { certs = certs.filter((c) => c.id !== cert.id); save(); refreshAll(); } } })),
+      h("div", { class: "progress" }, h("div", { style: `width:${cert.exams.length ? (passed / cert.exams.length) * 100 : 0}%;background:var(--cat)` })),
+      ...cert.exams.map((ex) => examRow(cert, ex)),
+      h("div", { class: "cert-mats" },
+        h("h4", { text: `Study materials (${mats.length})` }),
+        mats.length ? h("div", null, ...mats.map((c) => h("div", { class: "mat" },
+          h("a", { href: safeUrl(c.url), target: "_blank", rel: "noopener noreferrer", text: c.title + " ↗" }),
+          h("span", { class: "meta", text: `${STATUS_LABEL[c.status]} · ${coursePct(c)}%` }))))
+          : h("p", { class: "meta", text: `Paste your study materials in Add a course. Links mentioning ${certKeywords(cert).slice(0, 3).join(", ") || "this certification"} are linked here automatically.` })));
+  }
+  function certForm() {
+    const templates = (D.certifications || []).filter((t) => !certs.some((c) => c.templateId === t.id));
+    const sel = h("select", { "aria-label": "Certification" });
+    templates.forEach((t) => sel.append(h("option", { value: t.id, text: `${t.short || t.name} (${t.provider})` })));
+    sel.append(h("option", { value: "__custom", text: "Another certification (enter it yourself)…" }));
+    const f2 = {
+      name: h("input", { type: "text", placeholder: "Name, e.g. IAPP Artificial Intelligence Governance Professional" }),
+      short: h("input", { type: "text", placeholder: "Short name, e.g. AIGP" }),
+      provider: h("input", { type: "text", placeholder: "Provider, e.g. IAPP" }),
+      url: h("input", { type: "url", placeholder: "Official website (https://…)" }),
+      keywords: h("input", { type: "text", placeholder: "Keywords to recognize your study links, comma-separated, e.g. aigp, iapp" }),
+      exams: h("textarea", { rows: 3, placeholder: "One exam per line, optionally CODE: Name\ne.g. AIGP: AI Governance Professional exam" })
+    };
+    const custom = h("div", { class: "cert-custom" }, f2.name, h("div", { class: "row" }, f2.short, f2.provider), f2.url, f2.keywords, f2.exams);
+    const sync = () => { custom.hidden = sel.value !== "__custom"; };
+    sel.addEventListener("change", sync); sync();
+    const msg = h("p", { class: "meta" });
+    return h("div", { class: "cert-form" }, sel, custom,
+      h("div", { class: "row" },
+        h("button", { type: "button", class: "btn small primary", text: "Add certification", onclick: () => {
+          if (sel.value !== "__custom") { certFormOpen = false; addCertFromTemplate(sel.value); return; }
+          const name = f2.name.value.trim(); if (!name) { msg.textContent = "Give the certification a name."; f2.name.focus(); return; }
+          const lines = f2.exams.value.split(/\n+/).map((l) => l.trim()).filter(Boolean);
+          const exams = (lines.length ? lines : [name + " exam"]).map((l) => {
+            const m = l.match(/^([A-Za-z0-9.\-]{2,15})\s*:\s*(.+)$/);
+            return { id: newId(), code: m ? m[1] : "", name: m ? m[2] : l, format: "", url: "", covers: [], status: "todo", date: "",
+              steps: ["Read the official exam outline / body of knowledge", "Work through your main study course", "Take timed practice exams until you score comfortably above the pass mark", "Book the exam"].map((text) => ({ text, done: false })) };
+          });
+          const kw = f2.keywords.value.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
+          const cat = categories.find((k) => certMatches({ match: [k.name], exams: [] }, name))?.id || (catFilter !== "all" ? catFilter : "other");
+          certs.push({ id: newId(), templateId: null, name, short: f2.short.value.trim(), provider: f2.provider.value.trim(), url: f2.url.value.trim(),
+            category: cat, match: kw, exams });
+          certFormOpen = false; save(); refreshAll();
+        } }),
+        h("button", { type: "button", class: "btn small", text: "Cancel", onclick: () => { certFormOpen = false; renderLog(); } })),
+      msg);
+  }
+  function renderCerts() {
+    const box = $("cert-section"); box.textContent = "";
+    const visible = certs.filter((c) => catFilter === "all" || c.category === catFilter);
+    box.append(h("div", { class: "sec-head" }, h("h2", { text: "Certifications" }),
+      h("button", { class: "btn small", text: "＋ Add certification", onclick: () => { certFormOpen = !certFormOpen; renderLog(); } })));
+    if (certFormOpen) box.append(certForm());
+    if (!certs.length && !certFormOpen) {
+      box.append(h("p", { class: "meta", text: "Preparing for an exam? Track each exam, its date, a study plan, and the materials you use." }),
+        h("div", { class: "row" }, ...(D.certifications || []).map((t) => h("button", { class: "btn small primary", text: `＋ ${t.short || t.name}`, onclick: () => addCertFromTemplate(t.id) }))));
+      return;
+    }
+    if (certs.length && !visible.length) { box.append(h("p", { class: "meta", text: "No certifications in this category." })); return; }
+    box.append(h("div", { class: "cert-grid" }, ...visible.map(certCard)));
+  }
+
   // ── Quick add: paste a link → Start learning / Save for later
   const q = { url: $("q-url"), title: $("q-title"), preview: $("q-preview"), known: $("q-known"), skills: $("q-skills") };
   let qAutoTitle = "";
@@ -1420,6 +1567,12 @@
     const ids = [...qConcepts()];
     q.skills.textContent = "";
     if (ids.length) q.skills.textContent = "Skills it will track: " + ids.map((id) => conceptById[id].label).join(", ");
+    const text = q.title.value + " " + q.url.value;
+    const cert = certs.find((c) => certMatches(c, text));
+    const tmpl = !cert && (D.certifications || []).find((t) => certMatches(t, text));
+    if (cert) q.skills.append(h("span", { class: "cert-hint", text: ` 🎓 Counts toward your ${cert.short || cert.name} certification.` }));
+    else if (tmpl) q.skills.append(h("span", { class: "cert-hint" }, ` 🎓 Looks like ${tmpl.short || tmpl.name} prep. `,
+      h("button", { type: "button", class: "btn small", text: `Track the ${tmpl.short || tmpl.name} certification`, onclick: () => { addCertFromTemplate(tmpl.id); qSkills(); } })));
     else q.skills.append("No matching skills on your map yet, so this course won't light up any nodes. ",
       h("button", { type: "button", class: "btn small", text: "Add skills", onclick: () => { $("q-more").click(); $("curriculum").open = true; } }));
   }
@@ -1449,7 +1602,7 @@
   });
 
   $("export").addEventListener("click", () => {
-    const blob = new Blob([JSON.stringify({ version: 2, exported: today(), log, courseStatus, learned: [...manualLearned], levels, focus, progress, categories, courseCat, custom }, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify({ version: 2, exported: today(), log, courseStatus, learned: [...manualLearned], levels, focus, progress, categories, courseCat, certs, custom }, null, 2)], { type: "application/json" });
     const a = h("a", { href: URL.createObjectURL(blob), download: `learning-path-${today()}.json` });
     document.body.append(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
@@ -1468,6 +1621,7 @@
       if (typeof data.focus === "string") focus = data.focus;
       if (data.progress && typeof data.progress === "object") progress = { ...progress, ...data.progress };
       if (Array.isArray(data.categories)) data.categories.forEach((k) => { if (k && k.id && k.name && !catById(k.id)) categories.push(k); });
+      if (Array.isArray(data.certs)) data.certs.forEach((c) => { if (c && c.id && c.name && Array.isArray(c.exams) && !certs.some((x) => x.id === c.id)) certs.push(c); });
       if (data.courseCat && typeof data.courseCat === "object") courseCat = { ...courseCat, ...data.courseCat };
       if (data.custom) {
         arr(data.custom.domains).forEach((d) => registerDomain(d) && custom.domains.push(d));

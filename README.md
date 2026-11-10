@@ -16,6 +16,15 @@ The **My courses** tab is the home page:
 - **Up next** and **Completed** lists, with Start, Edit, Reopen and Remove.
 - **Add or edit with all details** (collapsed) holds the full form: project vs. course, skills, curriculum sync, dates and notes.
 
+## Certifications
+
+The **Certifications** section on My courses tracks exam paths such as TOGAF 10:
+
+- **＋ Add certification:** pick a template (TOGAF 10 is built in) or enter your own (e.g. IAPP AIGP): name, short name, provider, official link, keywords, and one exam per line (`CODE: Name`).
+- Each exam has a status (Not started, Preparing, Booked, Passed), a date with a countdown, the exam format, and a study plan checklist you can edit.
+- **Study materials are recognized automatically:** paste a course link in Add a course; if it mentions the certification's keywords or exam codes (e.g. `togaf`, `ogea`), it is linked to that certification and shown under Study materials with its progress.
+- Passing an exam lifts the skills it covers to Understand on the Skill map. Templates live in `certifications` in `data.js`; links there point only to official sites.
+
 ## Run it
 
 No build step and no dependencies. Open `index.html` in a browser, or serve the folder:
