@@ -16,6 +16,32 @@ The **My courses** tab is the home page:
 - **Up next** and **Completed** lists, with Start, Edit, Reopen and Remove.
 - **Add or edit with all details** (collapsed) holds the full form: project vs. course, skills, curriculum sync, dates and notes.
 
+## Types and topics
+
+Everything on My courses is one list with two ways to slice it:
+
+- **Type** (Group by → Type): 🎓 Degrees · 🏅 Certifications · 📘 Courses · 📄 Reading (standards, laws, papers, books) · 🛠 Projects. The type is detected when you paste a link (e.g. `/degrees/` → Degree; iso.org, nist.gov, eur-lex → Reading) and can be changed on the card.
+- **Topic** (the chips and Group by → Topic): AI, AI Governance & Privacy, Enterprise Architecture, CS Foundations, Consulting, … The topic color is the stripe on every card.
+
+`starterPlan` in `data.js` adds a plan to My courses once as "Up next" (currently the CU Boulder MS-CS degree, TOGAF 10 and IAPP AIGP certifications, and official readings: NIST AI RMF, ISO/IEC 42001, EU AI Act, GDPR, NIST SP 1270, the TOGAF Standard). Change its `id` to add new items later.
+
+## Plan
+
+The **Plan** tab is a timeline with parallel lanes (AI engineering; AI governance → AIGP → TOGAF; CS foundations → MS-CS; consulting & communication):
+
+- Bars are scheduled from each lane's **hours per week** (− / +) and rough hour estimates, in dependency order; the plan re-flows when you change the hours or make progress on My courses.
+- In-progress items are partly filled; ◆ marks exams (at your exam date if you set one, with ⚠ if it falls before prep is done).
+- "Why this order" explains the sequencing. Lanes, estimates and principles live in `roadmap` in `data.js`.
+
+## Certifications
+
+The **Certifications** section on My courses tracks exam paths such as TOGAF 10:
+
+- **＋ Add certification:** pick a template (TOGAF 10 is built in) or enter your own (e.g. IAPP AIGP): name, short name, provider, official link, keywords, and one exam per line (`CODE: Name`).
+- Each exam has a status (Not started, Preparing, Booked, Passed), a date with a countdown, the exam format, and a study plan checklist you can edit.
+- **Study materials are recognized automatically:** paste a course link in Add a course; if it mentions the certification's keywords or exam codes (e.g. `togaf`, `ogea`), it is linked to that certification and shown under Study materials with its progress.
+- Passing an exam lifts the skills it covers to Understand on the Skill map. Templates live in `certifications` in `data.js`; links there point only to official sites.
+
 ## Run it
 
 No build step and no dependencies. Open `index.html` in a browser, or serve the folder:

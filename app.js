@@ -5,7 +5,7 @@
   const SVGNS = "http://www.w3.org/2000/svg";
 
   // ───────────────────────── storage (per browser) ─────────────────────────
-  const KEYS = { status: "skillmap.courseStatus", learned: "skillmap.learned", log: "skillmap.log", custom: "skillmap.custom", levels: "skillmap.levels", focus: "skillmap.focus", progress: "skillmap.progress", tab: "skillmap.tab", cats: "skillmap.categories", courseCat: "skillmap.courseCategory", catFilter: "skillmap.catFilter", layout: "skillmap.layout" };
+  const KEYS = { status: "skillmap.courseStatus", learned: "skillmap.learned", log: "skillmap.log", custom: "skillmap.custom", levels: "skillmap.levels", focus: "skillmap.focus", progress: "skillmap.progress", tab: "skillmap.tab", cats: "skillmap.categories", courseCat: "skillmap.courseCategory", catFilter: "skillmap.catFilter", layout: "skillmap.layout", certs: "skillmap.certs" };
   const store = {
     get(k, fallback) {
       try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
@@ -21,8 +21,8 @@
   let progress = store.get(KEYS.progress, {}) || {};          // course id → % done (courses without weeks)
   // Course categories for the My courses page (Degree, AI, Enterprise Architecture, … plus your own)
   const DEFAULT_CATS = [
-    { id: "degree", name: "Degree", color: "#0f766e", pinned: true },
     { id: "ai", name: "AI", color: "#7c5cff", pinned: true },
+    { id: "gov", name: "AI Governance & Privacy", color: "#dc2626", pinned: true },
     { id: "ea", name: "Enterprise Architecture", color: "#0369a1", pinned: true },
     { id: "cs", name: "CS Foundations", color: "#2563eb" },
     { id: "consult", name: "Consulting", color: "#db2777" },
@@ -32,9 +32,15 @@
   let categories = store.get(KEYS.cats, null);
   if (!Array.isArray(categories) || !categories.length) categories = DEFAULT_CATS.map((c) => ({ ...c }));
   DEFAULT_CATS.forEach((d) => { if (!categories.some((c) => c.id === d.id)) categories.push({ ...d }); });
+  // "Degree" used to be a topic; it is a type now. Keep it only if you assigned courses to it.
+  categories.forEach((c) => { if (c.id === "degree") c.pinned = false; const d = DEFAULT_CATS.find((x) => x.id === c.id); if (d) c.pinned = !!d.pinned; });
   let courseCat = store.get(KEYS.courseCat, {}) || {};        // course id → category id (when you change it)
   let catFilter = store.get(KEYS.catFilter, "all");
-  let layoutPref = store.get(KEYS.layout, "columns");        // "columns" (board by category) or "list"         // depth track: "t:<topic>" or "d:<domain>"
+  let layoutPref = store.get(KEYS.layout, "columns");        // "columns" or "list"
+  let groupPref = store.get("skillmap.groupBy", "type");     // "type" (degree, certification, course…) or "topic"
+  // Certification paths you are working on (copied from a template or made by you)
+  let certs = store.get(KEYS.certs, []);
+  if (!Array.isArray(certs)) certs = [];        // "columns" (board by category) or "list"         // depth track: "t:<topic>" or "d:<domain>"
   if (!Array.isArray(log)) log = [];
   const save = () => {
     store.set(KEYS.status, courseStatus);
@@ -48,6 +54,8 @@
     store.set(KEYS.courseCat, courseCat);
     store.set(KEYS.catFilter, catFilter);
     store.set(KEYS.layout, layoutPref);
+    store.set("skillmap.groupBy", groupPref);
+    store.set(KEYS.certs, certs);
   };
 
   // ───────────────────────── lookups ─────────────────────────
@@ -161,15 +169,16 @@
     return best ? best[0] : D.domains[0].id;
   }
 
+  const TYPE_IDS = ["course", "degree", "reading", "project"];
   function allCourses() {
     const curated = D.courses.map((c) => {
       const modules = (c.modules || []).map((m) => ({ ...m, done: courseStatus[moduleKey(c.id, m.id)] === "completed" }));
       const covers = [...new Set([...c.covers, ...modules.flatMap((m) => m.covers)])];
-      return { ...c, covers, modules, mine: false, status: courseStatus[c.id] || "none" };
+      return { ...c, type: c.type || "course", covers, modules, mine: false, status: courseStatus[c.id] || "none" };
     });
     const mine = log.map((e) => ({
       id: "log:" + e.id, logId: e.id, title: e.title, provider: e.provider, url: e.url, cost: "", level: "",
-      covers: (e.concepts || []).filter((id) => conceptById[id]), mine: true, kind: e.kind || "course", status: e.status, start: e.start, end: e.end, domain: e.domain, notes: e.notes
+      covers: (e.concepts || []).filter((id) => conceptById[id]), mine: true, kind: e.kind || "course", type: TYPE_IDS.includes(e.kind) ? e.kind : "course", status: e.status, start: e.start, end: e.end, domain: e.domain, notes: e.notes
     }));
     return [...mine, ...curated];
   }
@@ -186,6 +195,9 @@
         if (m.done && m.covers.includes(conceptId)) out.push({ ...c, title: `${shortTitle(c.title)} · ${m.title}` });
       });
     });
+    certs.forEach((cert) => cert.exams.forEach((ex) => {
+      if (ex.status === "passed" && (ex.covers || []).includes(conceptId)) out.push({ title: `${cert.short || cert.name} · ${ex.code || ex.name} (passed)`, kind: "cert" });
+    }));
     return out;
   }
   function setModuleDone(courseId, moduleId, done) {
@@ -868,6 +880,7 @@
   function refreshAll() {
     nodes.forEach(drawNode); applyFocus(); renderStats(); renderPanel(); renderLog();
     if (typeof renderKnownMatch === "function" && $("f-url")) renderKnownMatch();
+    if (document.body.dataset.view === "plan" && typeof renderPlan === "function") renderPlan();
   }
   function rebuild() {
     buildGraph(); renderGraph(); settle(60); reheat(0.4); refreshAll();
@@ -897,6 +910,7 @@
     document.querySelectorAll(".view").forEach((v) => v.classList.toggle("active", v.id === "view-" + name));
     document.body.dataset.view = name; store.set(KEYS.tab, name);
     if (name === "graph" && view.k === 1 && view.x === 0) requestAnimationFrame(fit);
+    if (name === "plan" && typeof renderPlan === "function") renderPlan();
   }
   document.querySelectorAll(".tab").forEach((t) => t.addEventListener("click", () => switchView(t.dataset.view)));
 
@@ -982,6 +996,10 @@
     "stakeholder management": ["stakeholder-mgmt"], "proposal": ["proposals"], "scoping": ["proposals"], "use case": ["use-case-prioritization"],
     "business case": ["business-case"], "roi": ["business-case"], "change management": ["change-mgmt"], "adoption": ["change-mgmt"],
     "governance": ["ai-governance"], "responsible ai": ["ai-governance"], "ai strategy": ["use-case-prioritization", "business-case"], "for everyone": ["use-case-prioritization"],
+    "togaf": ["togaf", "adm"], "ogea": ["togaf", "adm"], "enterprise architect": ["togaf", "business-arch"], "archimate": ["archimate"],
+    "capabilit": ["capability-mapping"], "value stream": ["value-streams"], "business architecture": ["business-arch"], "data architecture": ["data-arch"],
+    "application architecture": ["application-arch"], "technology architecture": ["technology-arch"], "roadmap": ["migration-planning"],
+    "architecture governance": ["arch-governance"], "architecture principles": ["arch-principles"],
     "customer discovery": ["fde"], "stakeholder": ["fde"], "fine-tun": ["fine-tuning"], "embedding": ["embedding"]
   };
   const escapeRe = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -1252,10 +1270,12 @@
   }
   // ── Categories
   const catById = (id) => categories.find((c) => c.id === id);
-  const DOMAIN_TO_CAT = { ai: "ai", aifin: "ai", cs: "cs", consult: "consult", fin: "fin" };
+  const DOMAIN_TO_CAT = { ai: "ai", aifin: "ai", cs: "cs", consult: "consult", fin: "fin", ea: "ea", gov: "gov" };
   function guessCategory(c) {
     const t = `${c.title} ${c.provider || ""} ${c.url || ""}`.toLowerCase();
-    if (/\b(degrees?|master'?s|master of|msc|m\.sc|mba|bachelor'?s?|bachelor of|bsc|phd|postgraduate|graduate (certificate|diploma))\b/.test(t)) return "degree";
+    // study material for a certification takes the certification's topic
+    const cert = c.mine && certs.find((x) => certMatches(x, `${c.title} ${c.url}`));
+    if (cert && catById(cert.category)) return cert.category;
     if (/enterprise[- ]architect|togaf|archimate|zachman|business architecture/.test(t)) return "ea";
     return DOMAIN_TO_CAT[courseDomainId(c)] || "other";
   }
@@ -1282,25 +1302,64 @@
     sel.append(h("option", { value: "__new", text: "＋ New category…" }));
     return sel;
   }
-  function renderCatFilter(all) {
+  // ── Types: what kind of learning each item is
+  const TYPES = [
+    { id: "degree", name: "Degrees", one: "Degree", icon: "🎓" },
+    { id: "certificate", name: "Certifications", one: "Certification", icon: "🏅" },
+    { id: "course", name: "Courses", one: "Course", icon: "📘" },
+    { id: "reading", name: "Reading", one: "Reading", icon: "📄" },
+    { id: "project", name: "Projects", one: "Project", icon: "🛠" }
+  ];
+  const typeById = (id) => TYPES.find((t) => t.id === id) || TYPES[2];
+  const READING_HOSTS = /(^|\.)(nist\.gov|iso\.org|iec\.ch|europa\.eu|gov\.uk|ico\.org\.uk|oecd\.org|arxiv\.org|doi\.org|whitehouse\.gov|federalregister\.gov)$/;
+  function guessType(url, title) {
+    const t = `${title || ""} ${url || ""}`.toLowerCase();
+    let host = ""; try { host = new URL(url).hostname.replace(/^www\./, ""); } catch { /* not a URL yet */ }
+    if (/\/degrees?\/|\b(degree|master'?s|master of|msc|mba|bachelor'?s?|bachelor of|bsc|phd|postgraduate)\b/.test(t)) return "degree";
+    if (READING_HOSTS.test(host) || /\.pdf($|\?)/.test(t) || /\b(regulation|directive|standard|whitepaper|white paper|guidance|handbook|book)\b/.test(t)) return "reading";
+    if (/github\.com/.test(host)) return "project";
+    return "course";
+  }
+  function certState(cert) {
+    const ex = cert.exams;
+    if (ex.length && ex.every((e) => e.status === "passed")) return "completed";
+    if (ex.some((e) => e.status !== "todo" || e.steps.some((st) => st.done))) return "in-progress";
+    return "planned";
+  }
+  // Everything on the page as one list: courses, degrees, reading, projects and certifications
+  function learningItems() {
+    const courses = allCourses().filter((c) => c.status !== "none").map((c) => ({ kind: "course", c, id: c.id, type: c.type, topic: categoryOf(c), status: c.status }));
+    const cs = certs.map((cert) => ({ kind: "cert", cert, id: cert.id, type: "certificate", topic: catById(cert.category) ? cert.category : "other", status: certState(cert) }));
+    return [...cs, ...courses];
+  }
+
+  function renderCatFilter(items) {
     const box = $("cat-filter"); box.textContent = "";
-    const active = all.filter((c) => c.status !== "none");
-    const count = (id) => active.filter((c) => categoryOf(c) === id).length;
+    const count = (id) => items.filter((it) => it.topic === id).length;
     if (catFilter !== "all" && !catById(catFilter)) catFilter = "all";
     const chip = (id, label, n, color) => h("button", {
       class: "cat-chip" + (catFilter === id ? " on" : ""), style: color ? `--cat:${color}` : null, "aria-pressed": catFilter === id,
       onclick: () => { catFilter = id; save(); renderLog(); } },
       color ? h("span", { class: "cat-dot" }) : null, label, h("span", { class: "cat-n", text: String(n) }));
-    box.append(chip("all", "All", active.length));
+    box.append(chip("all", "All topics", items.length));
     categories.forEach((k) => { const n = count(k.id); if (n || k.pinned || catFilter === k.id) box.append(chip(k.id, k.name, n, k.color)); });
-    box.append(h("button", { class: "cat-chip add", text: "＋ Category", onclick: () => { const id = newCategory(); if (id) { catFilter = id; save(); renderLog(); } } }));
+    box.append(h("button", { class: "cat-chip add", text: "＋ Topic", onclick: () => { const id = newCategory(); if (id) { catFilter = id; save(); renderLog(); } } }));
   }
 
   function courseMeta(c) {
-    return [c.kind === "project" ? "Project" : null, c.provider, domainById[courseDomainId(c)]?.name].filter(Boolean).join(" · ");
+    return [c.provider, c.cost && !c.mine ? c.cost : null].filter(Boolean).join(" · ");
   }
+  function typePill(c) {
+    const t = typeById(c.type);
+    if (!c.mine) return h("span", { class: "type-pill", text: `${t.icon} ${t.one}` });
+    const sel = h("select", { class: "type-pill", "aria-label": "Type of " + c.title, title: "Type",
+      onchange: (e) => { const entry = log.find((x) => x.id === c.logId); if (entry) { entry.kind = e.target.value; save(); refreshAll(); } } });
+    TYPES.filter((x) => x.id !== "certificate").forEach((x) => sel.append(h("option", { value: x.id, selected: x.id === c.type || null, text: `${x.icon} ${x.one}` })));
+    return sel;
+  }
+  const itemColor = (c) => (catById(categoryOf(c)) || catById("other")).color;
   function nowCard(c) {
-    const color = domainById[courseDomainId(c)].color, pct = coursePct(c);
+    const color = itemColor(c), pct = coursePct(c);
     const nextMod = (c.modules || []).find((m) => !m.done);
     const skills = c.covers.map((id) => conceptById[id]?.label).filter(Boolean);
     const pctEl = h("div", { class: "pct", text: pct + "%" });
@@ -1317,22 +1376,23 @@
           onchange: (e) => setPct(c, +e.target.value) }));
     }
     return h("article", { class: "now-card", style: `--c:${color}` },
-      h("div", { class: "now-top" }, h("div", null, courseLink(c), h("div", { class: "meta-row" }, catSelect(c), h("span", { class: "meta", text: courseMeta(c) }))), pctEl),
+      h("div", { class: "now-top" }, h("div", null, courseLink(c),
+        h("div", { class: "meta-row" }, typePill(c), catSelect(c), h("span", { class: "meta", text: courseMeta(c) }))), pctEl),
       h("div", { class: "progress big" }, barFill),
       step,
       skills.length ? h("p", { class: "meta skills-line", text: "Skills: " + skills.slice(0, 5).join(", ") + (skills.length > 5 ? ` +${skills.length - 5} more` : "") })
         : c.mine ? h("p", { class: "meta skills-line" }, "No skills linked yet, so nothing lights up on the map. ",
           h("button", { class: "btn small", text: "Add skills", onclick: () => { startEdit(c.logId); $("curriculum").open = true; } })) : null,
       h("div", { class: "card-actions" },
-        h("button", { class: "btn small primary", text: "Mark complete", onclick: () => setCourseStatus(c, "completed") }),
+        h("button", { class: "btn small primary", text: c.type === "reading" ? "Mark as read" : "Mark complete", onclick: () => setCourseStatus(c, "completed") }),
         h("button", { class: "btn small", text: "Pause", title: "Move to Up next", onclick: () => setCourseStatus(c, "planned") }),
         c.mine ? h("button", { class: "btn small", text: "Edit", onclick: () => startEdit(c.logId) }) : null,
         h("button", { class: "btn small link", text: "See skills on map", onclick: () => showCuratedCourse(c.id) })));
   }
   function compactRow(c, kind) {
-    const color = domainById[courseDomainId(c)].color;
+    const color = itemColor(c);
     const actions = kind === "next"
-      ? [h("button", { class: "btn small primary", text: "Start", onclick: () => setCourseStatus(c, "in-progress") }),
+      ? [h("button", { class: "btn small primary", text: c.type === "reading" ? "Start reading" : "Start", onclick: () => setCourseStatus(c, "in-progress") }),
          c.mine ? h("button", { class: "btn small", text: "Edit", onclick: () => startEdit(c.logId) }) : null,
          h("button", { class: "btn small link", text: "Remove", onclick: () => (c.mine ? removeMine(c) : setCourseStatus(c, "none")) })]
       : [h("button", { class: "btn small", text: "Reopen", onclick: () => setCourseStatus(c, "in-progress") }),
@@ -1340,73 +1400,203 @@
     const meta = kind === "done" && c.end ? `${courseMeta(c)} · finished ${c.end}` : courseMeta(c);
     return h("div", { class: "crow", style: `--c:${color}` },
       h("span", { class: "crow-dot" }),
-      h("div", { class: "crow-main" }, courseLink(c), h("div", { class: "meta-row" }, catSelect(c), h("span", { class: "meta", text: meta }))),
+      h("div", { class: "crow-main" }, courseLink(c), h("div", { class: "meta-row" }, typePill(c), catSelect(c), meta ? h("span", { class: "meta", text: meta }) : null)),
       h("div", { class: "crow-actions" }, ...actions));
   }
+
   function renderLog() {
-    const all = allCourses();
-    const now = all.filter((c) => c.status === "in-progress").sort((a, b) => coursePct(b) - coursePct(a));
-    const next = all.filter((c) => c.status === "planned");
-    const done = all.filter((c) => c.status === "completed").sort((a, b) => (b.end || "").localeCompare(a.end || ""));
+    const items = learningItems();
+    // stats
     const total = D.concepts.length || 1;
     const cnt = (lvl) => D.concepts.filter((c) => levelOf(c.id) >= lvl).length;
+    const nowN = items.filter((i) => i.status === "in-progress").length, doneN = items.filter((i) => i.status === "completed").length;
+    const examsPassed = certs.reduce((a, c) => a + c.exams.filter((e) => e.status === "passed").length, 0), examsAll = certs.reduce((a, c) => a + c.exams.length, 0);
     const stats = $("dash-stats"); stats.textContent = "";
     stats.append(
-      statTile(now.length, "Learning now"),
-      statTile(done.length, "Completed"),
+      statTile(nowN, "In progress", `${items.filter((i) => i.status === "planned").length} up next`),
+      statTile(doneN, "Completed", examsAll ? `${examsPassed} of ${examsAll} certification exams passed` : null),
       statTile(cnt(2), "Skills gained", `${cnt(3)} applied in projects`),
       statTile(pctText(cnt(1) / total), "Of the map explored", `${pctText(cnt(3) / total)} deep`));
-    renderCatFilter(all);
+    $("log-count").textContent = nowN;
+
+    renderCatFilter(items);
     const wide = window.matchMedia("(min-width: 980px)").matches;
     document.querySelectorAll(".lt-btn").forEach((b) => b.classList.toggle("on", b.dataset.layout === layoutPref));
-    document.querySelector(".layout-toggle").hidden = !wide;
-    const board = wide && layoutPref === "columns" && catFilter === "all" && all.some((c) => c.status !== "none");
+    document.querySelectorAll(".gb-btn").forEach((b) => b.classList.toggle("on", b.dataset.group === groupPref));
+    $("layout-toggle").hidden = !wide;
+    const columns = wide && layoutPref === "columns";
     document.body.classList.toggle("board-mode", wide);
-    $("board").hidden = !board; $("list-view").hidden = board;
-    if (board) renderBoard(now, next, done);
-    const inCat = (c) => catFilter === "all" || categoryOf(c) === catFilter;
-    const fill = (id, items, make, emptyText) => {
-      const el = $(id); el.textContent = "";
-      items = items.filter(inCat);
-      if (!items.length) { el.append(h("p", { class: "empty", text: catFilter === "all" ? emptyText : `Nothing in ${catById(catFilter).name} here.` })); return; }
-      const groups = categories.map((k) => [k, items.filter((c) => categoryOf(c) === k.id)]).filter(([, cs]) => cs.length);
-      if (catFilter !== "all" || groups.length < 2) { items.forEach((c) => el.append(make(c))); return; }
-      groups.forEach(([k, cs]) => {
-        el.append(h("h3", { class: "cat-head", style: `--cat:${k.color}` }, h("span", { class: "cat-dot" }), k.name, h("span", { class: "cat-n", text: String(cs.length) })));
-        cs.forEach((c) => el.append(make(c)));
-      });
-    };
-    fill("now-list", now, nowCard, "Nothing in progress. Paste a course link above, or press Start on something in Up next.");
-    fill("next-list", next, (c) => compactRow(c, "next"), "Nothing saved for later.");
-    fill("done-list", done, (c) => compactRow(c, "done"), "Nothing completed yet.");
-    $("done-count").textContent = `(${done.length})`;
-    $("log-count").textContent = now.length;
-  }
 
-  // Columns layout: one column per category, each with Learning now / Up next / Completed
-  function renderBoard(now, next, done) {
-    const el = $("board"); el.textContent = "";
-    categories.forEach((k) => {
-      const mine = (list) => list.filter((c) => categoryOf(c) === k.id);
-      const n = mine(now), u = mine(next), d = mine(done);
-      if (!n.length && !u.length && !d.length) return;
-      const col = h("section", { class: "board-col card", style: `--cat:${k.color}` },
-        h("h2", { class: "board-head" }, h("span", { class: "cat-dot" }), k.name,
-          h("span", { class: "cat-n", text: `${n.length} now · ${u.length} next · ${d.length} done` })));
-      if (n.length) col.append(h("h3", { class: "board-sub", text: "Learning now" }), ...n.map(nowCard));
-      if (u.length) col.append(h("h3", { class: "board-sub", text: "Up next" }), h("div", { class: "compact-list" }, ...u.map((c) => compactRow(c, "next"))));
-      if (d.length) col.append(h("details", { class: "board-done" }, h("summary", { text: `Completed (${d.length})` }),
-        h("div", { class: "compact-list" }, ...d.map((c) => compactRow(c, "done")))));
-      el.append(col);
+    const shown = items.filter((i) => catFilter === "all" || i.topic === catFilter);
+    const groupsEl = $("groups"); groupsEl.textContent = "";
+    groupsEl.className = "groups " + (columns ? "as-columns" : "as-list");
+    if (!items.length) {
+      groupsEl.append(h("section", { class: "card empty-state" },
+        h("h2", { text: "Start your learning plan" }),
+        h("p", { class: "meta", text: "Paste a link above to add a course, a degree, or a standard or law to read. Or track an exam:" }),
+        h("div", { class: "row" }, ...(D.certifications || []).map((t) => h("button", { class: "btn small primary", text: `🏅 ${t.short || t.name}`, onclick: () => addCertFromTemplate(t.id) })))));
+      return;
+    }
+    if (!shown.length) { groupsEl.append(h("section", { class: "card" }, h("p", { class: "empty", text: `Nothing in ${catById(catFilter).name} yet.` }))); return; }
+
+    const groups = groupPref === "topic"
+      ? categories.map((k) => ({ title: k.name, color: k.color, icon: null, items: shown.filter((i) => i.topic === k.id) }))
+      : TYPES.map((t) => ({ title: t.name, color: null, icon: t.icon, items: shown.filter((i) => i.type === t.id) }));
+    groups.filter((g) => g.items.length).forEach((g) => {
+      const now = g.items.filter((i) => i.status === "in-progress"), next = g.items.filter((i) => i.status === "planned"), done = g.items.filter((i) => i.status === "completed");
+      now.sort((x, y) => (x.kind === "cert" ? 0 : coursePct(y.c)) - (y.kind === "cert" ? 0 : coursePct(x.c)));
+      const sec = h("section", { class: "group card", style: g.color ? `--cat:${g.color}` : null },
+        h("h2", { class: "group-head" }, g.icon ? h("span", { class: "group-icon", text: g.icon }) : h("span", { class: "cat-dot" }), g.title,
+          h("span", { class: "group-counts", text: [now.length && `${now.length} in progress`, next.length && `${next.length} up next`, done.length && `${done.length} done`].filter(Boolean).join(" · ") })));
+      const render = (i, as) => (i.kind === "cert" ? certCard(i.cert) : as === "now" ? nowCard(i.c) : compactRow(i.c, as));
+      if (now.length) sec.append(h("h3", { class: "board-sub", text: "In progress" }), ...now.map((i) => render(i, "now")));
+      if (next.length) sec.append(h("h3", { class: "board-sub", text: "Up next" }), h("div", { class: "compact-list" }, ...next.map((i) => render(i, "next"))));
+      if (done.length) sec.append(h("details", { class: "board-done" }, h("summary", { text: `Completed (${done.length})` }),
+        h("div", { class: "compact-list" }, ...done.map((i) => render(i, "done")))));
+      groupsEl.append(sec);
     });
   }
   document.querySelectorAll(".lt-btn").forEach((b) => b.addEventListener("click", () => { layoutPref = b.dataset.layout; save(); renderLog(); }));
+  document.querySelectorAll(".gb-btn").forEach((b) => b.addEventListener("click", () => { groupPref = b.dataset.group; save(); renderLog(); }));
   window.matchMedia("(min-width: 980px)").addEventListener("change", () => renderLog());
+
+  // ───────────────────────── Certifications ─────────────────────────
+  const EXAM_STATUS = { todo: "Not started", preparing: "Preparing", booked: "Booked", passed: "Passed" };
+  let certFormOpen = false;
+  const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  function certKeywords(cert) {
+    const words = [...(cert.match || []), cert.short, ...cert.exams.map((e) => e.code)].filter(Boolean).map((w) => String(w).toLowerCase().trim()).filter((w) => w.length >= 3);
+    return [...new Set(words)];
+  }
+  const certMatches = (cert, text) => { const t = (text || "").toLowerCase(); return certKeywords(cert).some((w) => t.includes(w)); };
+  const certCourses = (cert) => allCourses().filter((c) => c.status !== "none" && certMatches(cert, `${c.title} ${c.url}`));
+  function addCertFromTemplate(templateId) {
+    const t = (D.certifications || []).find((x) => x.id === templateId);
+    if (!t) return;
+    if (certs.some((c) => c.templateId === t.id)) return;
+    certs.push({
+      id: newId(), templateId: t.id, name: t.name, short: t.short, provider: t.provider, url: t.url, category: t.category, match: [...(t.match || [])],
+      exams: t.exams.map((e) => ({ id: e.id, code: e.code, name: e.name, format: e.format, url: e.url, covers: [...(e.covers || [])],
+        status: "todo", date: "", steps: e.steps.map((text) => ({ text, done: false })) }))
+    });
+    save(); renderLog(); refreshAll();
+  }
+  function examDays(ex) {
+    if (!ex.date) return null;
+    const ms = new Date(ex.date + "T00:00:00") - new Date(today() + "T00:00:00");
+    return Math.round(ms / 86400000);
+  }
+  function examRow(cert, ex) {
+    const done = ex.steps.filter((x) => x.done).length, total = ex.steps.length;
+    const days = examDays(ex);
+    let when = null;
+    if (ex.status === "passed") when = h("span", { class: "exam-when ok", text: ex.date ? `✓ Passed ${ex.date}` : "✓ Passed" });
+    else if (days != null) when = h("span", { class: "exam-when" + (days < 0 ? " late" : days <= 14 ? " soon" : ""),
+      text: days > 1 ? `in ${days} days` : days === 1 ? "tomorrow" : days === 0 ? "today" : `${-days} days ago: update the status` });
+    const statusSel = h("select", { class: "exam-status " + ex.status, "aria-label": "Status for " + ex.name,
+      onchange: (e) => { ex.status = e.target.value; if (ex.status === "passed" && !ex.date) ex.date = today(); save(); refreshAll(); } });
+    Object.entries(EXAM_STATUS).forEach(([k, v]) => statusSel.append(h("option", { value: k, selected: k === ex.status || null, text: v })));
+    const dateIn = h("input", { type: "date", value: ex.date || "", "aria-label": (ex.status === "passed" ? "Date passed for " : "Exam date for ") + ex.name,
+      onchange: (e) => { ex.date = e.target.value; save(); renderLog(); } });
+    const stepsBox = h("details", { class: "exam-steps", open: ex.status === "preparing" || ex.status === "booked" || null },
+      h("summary", null, h("span", { text: `Study plan · ${done}/${total}` }),
+        h("span", { class: "progress mini" }, h("div", { style: `width:${total ? (done / total) * 100 : 0}%;background:var(--cat)` }))));
+    ex.steps.forEach((st, i) => stepsBox.append(h("label", { class: "step" + (st.done ? " done" : "") },
+      h("input", { type: "checkbox", checked: st.done || null, onchange: (e) => {
+        st.done = e.target.checked;
+        if (st.done && ex.status === "todo") ex.status = "preparing";
+        save(); renderLog();
+      } }),
+      h("span", { text: st.text }),
+      h("button", { type: "button", class: "step-x", title: "Remove step", "aria-label": "Remove step", text: "×", onclick: (e) => { e.preventDefault(); ex.steps.splice(i, 1); save(); renderLog(); } }))));
+    const stepIn = h("input", { type: "text", placeholder: "Add a study step…", "aria-label": "New study step",
+      onkeydown: (e) => { if (e.key === "Enter" && e.target.value.trim()) { e.preventDefault(); ex.steps.push({ text: e.target.value.trim(), done: false }); save(); renderLog(); } } });
+    stepsBox.append(h("div", { class: "step-add" }, stepIn));
+    return h("div", { class: "exam" + (ex.status === "passed" ? " passed" : "") },
+      h("div", { class: "exam-top" },
+        h("div", { class: "exam-name" }, ex.code ? h("span", { class: "exam-code", text: ex.code }) : null,
+          ex.url ? h("a", { href: safeUrl(ex.url), target: "_blank", rel: "noopener noreferrer", text: ex.name + " ↗" }) : h("span", { text: ex.name })),
+        h("div", { class: "exam-ctrls" }, statusSel, dateIn, when)),
+      ex.format ? h("p", { class: "meta", text: ex.format }) : null,
+      stepsBox);
+  }
+  function certCard(cert) {
+    const cat = catById(cert.category) || catById("other");
+    const passed = cert.exams.filter((e) => e.status === "passed").length;
+    const mats = certCourses(cert);
+    const catSel = h("select", { class: "cat-select", style: `--cat:${cat.color}`, "aria-label": "Category for " + cert.name,
+      onchange: (e) => { let v = e.target.value; if (v === "__new") { v = newCategory(); if (!v) { e.target.value = cert.category; return; } } cert.category = v; save(); renderLog(); } });
+    categories.forEach((k) => catSel.append(h("option", { value: k.id, selected: k.id === cat.id || null, text: k.name })));
+    catSel.append(h("option", { value: "__new", text: "＋ New category…" }));
+    return h("article", { class: "cert-card", style: `--cat:${cat.color};--c:${cat.color}` },
+      h("div", { class: "cert-top" },
+        h("div", null,
+          cert.url ? h("a", { class: "title", href: safeUrl(cert.url), target: "_blank", rel: "noopener noreferrer", text: cert.name + " ↗" }) : h("span", { class: "title", text: cert.name }),
+          h("div", { class: "meta-row" }, h("span", { class: "type-pill", text: "🏅 Certification" }), catSel, h("span", { class: "meta", text: [cert.provider, `${passed}/${cert.exams.length} exams passed`].filter(Boolean).join(" · ") }))),
+        h("button", { class: "btn small link", text: "Remove", onclick: () => { if (confirm(`Remove the ${cert.short || cert.name} certification path?`)) { certs = certs.filter((c) => c.id !== cert.id); save(); refreshAll(); } } })),
+      h("div", { class: "progress" }, h("div", { style: `width:${cert.exams.length ? (passed / cert.exams.length) * 100 : 0}%;background:var(--cat)` })),
+      ...cert.exams.map((ex) => examRow(cert, ex)),
+      h("div", { class: "cert-mats" },
+        h("h4", { text: `Study materials (${mats.length})` }),
+        mats.length ? h("div", null, ...mats.map((c) => h("div", { class: "mat" },
+          h("a", { href: safeUrl(c.url), target: "_blank", rel: "noopener noreferrer", text: c.title + " ↗" }),
+          h("span", { class: "meta", text: `${STATUS_LABEL[c.status]} · ${coursePct(c)}%` }))))
+          : h("p", { class: "meta", text: `Paste your study materials in Add a course. Links mentioning ${certKeywords(cert).slice(0, 3).join(", ") || "this certification"} are linked here automatically.` })));
+  }
+  function certForm() {
+    const templates = (D.certifications || []).filter((t) => !certs.some((c) => c.templateId === t.id));
+    const sel = h("select", { "aria-label": "Certification" });
+    templates.forEach((t) => sel.append(h("option", { value: t.id, text: `${t.short || t.name} (${t.provider})` })));
+    sel.append(h("option", { value: "__custom", text: "Another certification (enter it yourself)…" }));
+    const f2 = {
+      name: h("input", { type: "text", placeholder: "Name, e.g. IAPP Artificial Intelligence Governance Professional" }),
+      short: h("input", { type: "text", placeholder: "Short name, e.g. AIGP" }),
+      provider: h("input", { type: "text", placeholder: "Provider, e.g. IAPP" }),
+      url: h("input", { type: "url", placeholder: "Official website (https://…)" }),
+      keywords: h("input", { type: "text", placeholder: "Keywords to recognize your study links, comma-separated, e.g. aigp, iapp" }),
+      exams: h("textarea", { rows: 3, placeholder: "One exam per line, optionally CODE: Name\ne.g. AIGP: AI Governance Professional exam" })
+    };
+    const custom = h("div", { class: "cert-custom" }, f2.name, h("div", { class: "row" }, f2.short, f2.provider), f2.url, f2.keywords, f2.exams);
+    const sync = () => { custom.hidden = sel.value !== "__custom"; };
+    sel.addEventListener("change", sync); sync();
+    const msg = h("p", { class: "meta" });
+    return h("div", { class: "cert-form" }, sel, custom,
+      h("div", { class: "row" },
+        h("button", { type: "button", class: "btn small primary", text: "Add certification", onclick: () => {
+          if (sel.value !== "__custom") { certFormOpen = false; renderCertFormSlot(); addCertFromTemplate(sel.value); return; }
+          const name = f2.name.value.trim(); if (!name) { msg.textContent = "Give the certification a name."; f2.name.focus(); return; }
+          const lines = f2.exams.value.split(/\n+/).map((l) => l.trim()).filter(Boolean);
+          const exams = (lines.length ? lines : [name + " exam"]).map((l) => {
+            const m = l.match(/^([A-Za-z0-9.\-]{2,15})\s*:\s*(.+)$/);
+            return { id: newId(), code: m ? m[1] : "", name: m ? m[2] : l, format: "", url: "", covers: [], status: "todo", date: "",
+              steps: ["Read the official exam outline / body of knowledge", "Work through your main study course", "Take timed practice exams until you score comfortably above the pass mark", "Book the exam"].map((text) => ({ text, done: false })) };
+          });
+          const kw = f2.keywords.value.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
+          const cat = catFilter !== "all" ? catFilter : (categories.find((k) => k.id !== "other" && name.toLowerCase().includes(k.name.toLowerCase()))?.id || "other");
+          certs.push({ id: newId(), templateId: null, name, short: f2.short.value.trim(), provider: f2.provider.value.trim(), url: f2.url.value.trim(),
+            category: cat, match: kw, exams });
+          certFormOpen = false; renderCertFormSlot(); save(); refreshAll();
+        } }),
+        h("button", { type: "button", class: "btn small", text: "Cancel", onclick: () => { certFormOpen = false; renderCertFormSlot(); } })),
+      msg);
+  }
+  function renderCertFormSlot() {
+    const slot = $("cert-form-slot"); slot.textContent = "";
+    if (certFormOpen) slot.append(certForm());
+    $("q-cert").textContent = certFormOpen ? "Close" : "🏅 Add a certification path";
+  }
+  $("q-cert").addEventListener("click", () => { certFormOpen = !certFormOpen; renderCertFormSlot(); });
 
   // ── Quick add: paste a link → Start learning / Save for later
   const q = { url: $("q-url"), title: $("q-title"), preview: $("q-preview"), known: $("q-known"), skills: $("q-skills") };
   let qAutoTitle = "";
-  const qConcepts = () => suggestConcepts(q.title.value + " " + q.url.value.replace(/^\s*https?:\/\/[^/]+/i, "").replace(/[-_/]+/g, " "));
+  const qConcepts = () => {
+    const ids = suggestConcepts(q.title.value + " " + q.url.value.replace(/^\s*https?:\/\/[^/]+/i, "").replace(/[-_/]+/g, " "));
+    // study material for a certification you track covers that certification's exam skills
+    const cert = certs.find((c) => certMatches(c, `${q.title.value} ${q.url.value}`));
+    if (cert) cert.exams.forEach((e) => (e.covers || []).forEach((id) => conceptById[id] && ids.add(id)));
+    return ids;
+  };
   function qUpdate() {
     const hit = findKnown(q.url.value);
     renderKnownInto(q.known, hit);
@@ -1414,12 +1604,19 @@
     q.preview.hidden = !parsed;
     if (!parsed) return;
     if (!q.title.value || q.title.value === qAutoTitle) { q.title.value = parsed.title; qAutoTitle = parsed.title; }
+    if (!$("q-type").dataset.touched) $("q-type").value = guessType(q.url.value, q.title.value);
     qSkills();
   }
   function qSkills() {
     const ids = [...qConcepts()];
     q.skills.textContent = "";
     if (ids.length) q.skills.textContent = "Skills it will track: " + ids.map((id) => conceptById[id].label).join(", ");
+    const text = q.title.value + " " + q.url.value;
+    const cert = certs.find((c) => certMatches(c, text));
+    const tmpl = !cert && (D.certifications || []).find((t) => certMatches(t, text));
+    if (cert) q.skills.append(h("span", { class: "cert-hint", text: ` 🏅 Counts toward your ${cert.short || cert.name} certification.` }));
+    else if (tmpl) q.skills.append(h("span", { class: "cert-hint" }, ` 🏅 Looks like ${tmpl.short || tmpl.name} prep. `,
+      h("button", { type: "button", class: "btn small", text: `Track the ${tmpl.short || tmpl.name} certification`, onclick: () => { addCertFromTemplate(tmpl.id); qSkills(); } })));
     else q.skills.append("No matching skills on your map yet, so this course won't light up any nodes. ",
       h("button", { type: "button", class: "btn small", text: "Add skills", onclick: () => { $("q-more").click(); $("curriculum").open = true; } }));
   }
@@ -1429,13 +1626,14 @@
     log.unshift({
       id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), url: q.url.value.trim(),
       title: q.title.value.trim() || p.title, provider: p.provider, domain: guessDomain(ids) || D.domains[0].id,
-      kind: "course", status, start: status === "in-progress" ? today() : "", end: "",
+      kind: $("q-type").value || "course", status, start: status === "in-progress" ? today() : "", end: "",
       concepts: ids, notes: "", curriculum: "", added: today()
     });
-    save(); q.url.value = ""; q.title.value = ""; qAutoTitle = ""; q.preview.hidden = true; q.known.hidden = true;
+    save(); q.url.value = ""; q.title.value = ""; qAutoTitle = ""; q.preview.hidden = true; q.known.hidden = true; delete $("q-type").dataset.touched;
     rebuild();
   }
   q.url.addEventListener("input", qUpdate);
+  $("q-type").addEventListener("change", (e) => { e.target.dataset.touched = "1"; });
   q.title.addEventListener("input", qSkills);
   q.url.addEventListener("keydown", (e) => { if (e.key === "Enter" && !q.preview.hidden) { e.preventDefault(); qAdd("in-progress"); } });
   $("q-start").addEventListener("click", () => qAdd("in-progress"));
@@ -1449,7 +1647,7 @@
   });
 
   $("export").addEventListener("click", () => {
-    const blob = new Blob([JSON.stringify({ version: 2, exported: today(), log, courseStatus, learned: [...manualLearned], levels, focus, progress, categories, courseCat, custom }, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify({ version: 2, exported: today(), log, courseStatus, learned: [...manualLearned], levels, focus, progress, categories, courseCat, certs, custom }, null, 2)], { type: "application/json" });
     const a = h("a", { href: URL.createObjectURL(blob), download: `learning-path-${today()}.json` });
     document.body.append(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
@@ -1468,6 +1666,7 @@
       if (typeof data.focus === "string") focus = data.focus;
       if (data.progress && typeof data.progress === "object") progress = { ...progress, ...data.progress };
       if (Array.isArray(data.categories)) data.categories.forEach((k) => { if (k && k.id && k.name && !catById(k.id)) categories.push(k); });
+      if (Array.isArray(data.certs)) data.certs.forEach((c) => { if (c && c.id && c.name && Array.isArray(c.exams) && !certs.some((x) => x.id === c.id)) certs.push(c); });
       if (data.courseCat && typeof data.courseCat === "object") courseCat = { ...courseCat, ...data.courseCat };
       if (data.custom) {
         arr(data.custom.domains).forEach((d) => registerDomain(d) && custom.domains.push(d));
@@ -1481,6 +1680,167 @@
     }
     ev.target.value = "";
   });
+
+  // ───────────────────────── Plan: parallel lanes on a timeline ─────────────────────────
+  let laneHours = store.get("skillmap.laneHours", {}) || {};
+  let planMonths = store.get("skillmap.planMonths", 18);
+  const WEEK_MS = 7 * 86400000;
+  const fmtMonth = (d) => d.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+  const fmtDay = (d) => d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+
+  // What is the current state of a plan item? Reads courses, your own entries and certifications.
+  function resolvePlanItem(item) {
+    const out = { label: item.label, url: "", status: "planned", pct: 0, examDate: "", kind: item.kind || "" };
+    let course = null;
+    if (item.ref) course = allCourses().find((c) => c.id === item.ref);
+    if (!course && item.match) course = allCourses().find((c) => c.mine && `${c.title} ${c.url}`.toLowerCase().includes(item.match));
+    if (course) {
+      Object.assign(out, { label: item.label || course.title, url: course.url, status: course.status === "none" ? "planned" : course.status, pct: coursePct(course) });
+    }
+    if (item.refs) {
+      // several short items shown as one bar (e.g. a set of readings)
+      const list = item.refs.map((id) => allCourses().find((c) => c.id === id)).filter(Boolean);
+      const pcts = list.map((c) => (c.status === "completed" ? 100 : coursePct(c)));
+      out.pct = list.length ? Math.round(pcts.reduce((a, b) => a + b, 0) / list.length) : 0;
+      out.status = list.length && list.every((c) => c.status === "completed") ? "completed" : list.some((c) => c.status === "in-progress" || c.status === "completed") ? "in-progress" : "planned";
+      out.details = list.map((c) => `${c.status === "completed" ? "✓" : c.status === "in-progress" ? "▸" : "·"} ${c.title}`);
+    }
+    if (item.cert) {
+      const t = (D.certifications || []).find((x) => x.id === item.cert);
+      const mine = certs.find((c) => c.templateId === item.cert);
+      const ex = mine && mine.exams.find((e) => e.id === item.exam);
+      const tex = t && t.exams.find((e) => e.id === item.exam);
+      out.url = (tex && tex.url) || (t && t.url) || "";
+      out.code = (tex && tex.code) || "";
+      if (ex) {
+        const steps = ex.steps.length ? ex.steps.filter((x) => x.done).length / ex.steps.length : 0;
+        out.status = ex.status === "passed" ? "completed" : ex.status === "todo" && !steps ? "planned" : "in-progress";
+        out.pct = ex.status === "passed" ? 100 : Math.round(steps * 100);
+        out.examDate = ex.date || "";
+      }
+    }
+    // the degree is split into pathway + degree courses; only the first is "in progress"
+    if (item.id === "rm-mscs" && out.status === "in-progress") out.status = "planned";
+    return out;
+  }
+
+  function schedulePlan() {
+    const rm = D.roadmap; if (!rm) return { lanes: [], ends: {} };
+    const ends = {};
+    const lanes = rm.lanes.map((lane) => {
+      const perWeek = Math.max(0, Number(laneHours[lane.id] ?? lane.hoursPerWeek) || 0);
+      let cursor = 0; const done = [], bars = [];
+      lane.items.forEach((item) => {
+        const st = resolvePlanItem(item);
+        const remaining = st.status === "completed" ? 0 : item.hours * (1 - st.pct / 100);
+        const depEnd = Math.max(0, ...(item.after || []).map((a) => ends[a] ?? 0));
+        const start = Math.max(cursor, depEnd);
+        const weeks = remaining === 0 ? 0 : perWeek > 0 ? remaining / perWeek : Infinity;
+        const end = start + weeks;
+        ends[item.id] = end;
+        if (st.status === "completed") { done.push({ item, st }); return; }
+        bars.push({ item, st, start, end, weeks, remaining });
+        cursor = item.open ? cursor : end;
+      });
+      return { lane, perWeek, done, bars, topicColor: (catById(lane.topic) || catById("other")).color };
+    });
+    return { lanes, ends };
+  }
+
+  function renderPlan() {
+    const rm = D.roadmap; const box = $("timeline"); if (!rm || !box) return;
+    document.querySelectorAll(".rng-btn").forEach((b) => b.classList.toggle("on", +b.dataset.months === planMonths));
+    const { lanes } = schedulePlan();
+    const t0 = new Date(today() + "T00:00:00");
+    const weeksShown = planMonths * 4.345;
+    const W = Math.max(14, Math.min(28, Math.round(1100 / weeksShown)));   // px per week
+    const trackW = Math.ceil(weeksShown * W);
+    const dateAt = (w) => new Date(t0.getTime() + w * WEEK_MS);
+    const xOf = (w) => Math.round(w * W);
+
+    box.textContent = "";
+    box.style.setProperty("--track-w", trackW + "px");
+    // header: months
+    const head = h("div", { class: "tl-row tl-head" }, h("div", { class: "tl-label" }, h("span", { class: "meta", text: "Lane · hours per week" })));
+    const months = h("div", { class: "tl-track tl-months" });
+    const m = new Date(t0.getFullYear(), t0.getMonth() + 1, 1);
+    const firstGap = (new Date(t0.getFullYear(), t0.getMonth() + 1, 1) - t0) / WEEK_MS * W;
+    months.append(h("span", { class: "tl-month first", style: "left:0", text: firstGap > 70 ? fmtMonth(t0) : firstGap > 34 ? t0.toLocaleDateString("en-US", { month: "short" }) : "" }));
+    while ((m - t0) / WEEK_MS < weeksShown) {
+      const w = (m - t0) / WEEK_MS;
+      months.append(h("span", { class: "tl-month" + (m.getMonth() === 0 ? " year" : ""), style: `left:${xOf(w)}px`, text: m.getMonth() === 0 ? String(m.getFullYear()) : m.toLocaleDateString("en-US", { month: "short" }) }));
+      m.setMonth(m.getMonth() + 1);
+    }
+    head.append(months); box.append(head);
+
+    const gridLines = () => {
+      const g = h("div", { class: "tl-grid" });
+      const mm = new Date(t0.getFullYear(), t0.getMonth() + 1, 1);
+      while ((mm - t0) / WEEK_MS < weeksShown) { g.append(h("span", { class: "tl-gl" + (mm.getMonth() === 0 ? " year" : ""), style: `left:${xOf((mm - t0) / WEEK_MS)}px` })); mm.setMonth(mm.getMonth() + 1); }
+      g.append(h("span", { class: "tl-today", style: "left:0" }));
+      return g;
+    };
+
+    const milestones = [];
+    let totalPerWeek = 0;
+    lanes.forEach(({ lane, perWeek, done, bars, topicColor }) => {
+      totalPerWeek += perWeek;
+      const setHours = (v) => { laneHours[lane.id] = Math.max(0, Math.min(40, v)); store.set("skillmap.laneHours", laneHours); renderPlan(); };
+      const finite = bars.filter((b) => isFinite(b.end) && !b.item.open);
+      const finish = finite.length ? dateAt(Math.max(...finite.map((b) => b.end))) : null;
+      const label = h("div", { class: "tl-label", style: `--c:${topicColor}` },
+        h("div", { class: "tl-lane-name", text: lane.name }),
+        h("div", { class: "meta", text: lane.note || "" }),
+        h("div", { class: "tl-hours" },
+          h("button", { class: "btn small", "aria-label": `Fewer hours for ${lane.name}`, text: "−", onclick: () => setHours(perWeek - 1) }),
+          h("span", { class: "tl-h", text: `${perWeek} h/wk` }),
+          h("button", { class: "btn small", "aria-label": `More hours for ${lane.name}`, text: "+", onclick: () => setHours(perWeek + 1) })),
+        h("div", { class: "meta tl-finish", text: perWeek === 0 ? "Paused" : finish ? `Done ≈ ${fmtMonth(finish)}` : "" }),
+        done.length ? h("div", { class: "tl-done", title: done.map((d) => "✓ " + (d.st.label || d.item.label)).join("\n"), text: `✓ ${done.length} done` }) : null);
+      const track = h("div", { class: "tl-track" }, gridLines());
+      let hiddenLater = 0;
+      bars.forEach((b) => {
+        const st = b.st, inProg = st.status === "in-progress";
+        const left = xOf(b.start);
+        if (left >= trackW) { hiddenLater++; return; }
+        const rawW = isFinite(b.end) ? xOf(b.end) - left : trackW - left;
+        const width = b.item.open ? trackW - left : Math.max(8, Math.min(rawW, trackW - left));
+        const cut = !b.item.open && left + rawW > trackW;
+        const when = isFinite(b.end) ? `${fmtDay(dateAt(b.start))} → ${fmtDay(dateAt(b.end))}` : "paused (0 h/wk)";
+        const tip = `${st.label}\n${STATUS_LABEL[st.status] || st.status}${inProg ? ` · ${st.pct}% done` : ""}\n≈ ${Math.round(b.remaining)} h left · ${b.item.open ? "ongoing" : when}${st.details ? "\n\n" + st.details.join("\n") : ""}${st.url ? "\nClick to open" : ""}`;
+        const bar = h(st.url ? "a" : "div", {
+          class: "tl-bar" + (inProg ? " prog" : "") + (b.item.open ? " open" : "") + (cut ? " cut" : "") + (b.item.kind === "project" ? " project" : ""),
+          style: `left:${left}px;width:${width}px;--c:${topicColor};--p:${inProg ? st.pct : 0}%`, title: tip,
+          href: st.url ? safeUrl(st.url) : null, target: st.url ? "_blank" : null, rel: st.url ? "noopener noreferrer" : null },
+          h("span", { class: "tl-bar-text", text: (b.item.kind === "project" ? "🛠 " : "") + st.label }));
+        track.append(bar);
+        if (b.item.cert && isFinite(b.end)) {
+          const set = st.examDate ? (new Date(st.examDate + "T00:00:00") - t0) / WEEK_MS : null;
+          const w = set != null ? set : b.end;
+          const late = set != null && set < b.end;
+          milestones.push({ code: st.code || st.label, date: dateAt(w), set: set != null, late });
+          if (xOf(w) < trackW && w >= 0) track.append(h("span", {
+            class: "tl-ms" + (late ? " late" : "") + (set != null ? " set" : ""), style: `left:${xOf(w)}px;--c:${topicColor}`,
+            title: `${st.code || st.label} exam ${set != null ? "booked/planned for" : "≈"} ${fmtDay(dateAt(w))}${late ? "\nYour exam date is before the planned end of prep: add hours to this lane or move the date." : ""}` },
+            h("span", { class: "tl-ms-label", text: (late ? "⚠ " : "") + (st.code || "Exam") })));
+        }
+      });
+      if (hiddenLater) track.append(h("span", { class: "tl-later", text: `+${hiddenLater} later →` }));
+      box.append(h("div", { class: "tl-row", style: `--c:${topicColor}` }, label, track));
+    });
+
+    // summary line
+    const fmtMs = (x) => `${x.code} ${x.set ? "on" : "≈"} ${fmtMonth(x.date)}${x.late ? " ⚠" : ""}`;
+    const mscs = lanes.flatMap((l) => l.bars).find((b) => b.item.id === "rm-mscs-pathway");
+    $("plan-summary").textContent = [
+      `${totalPerWeek} h per week across ${lanes.length} parallel lanes`,
+      milestones.length ? "Exams: " + milestones.map(fmtMs).join(" · ") : null,
+      mscs && isFinite(mscs.start) ? `MS-CS pathway starts ≈ ${fmtMonth(dateAt(mscs.start))}` : null
+    ].filter(Boolean).join("  ·  ");
+    const ol = $("plan-principles"); ol.textContent = "";
+    (rm.principles || []).forEach((p) => ol.append(h("li", { text: p })));
+  }
+  document.querySelectorAll(".rng-btn").forEach((b) => b.addEventListener("click", () => { planMonths = +b.dataset.months; store.set("skillmap.planMonths", planMonths); renderPlan(); }));
 
   // ───────────────────────── light / dark theme ─────────────────────────
   function applyTheme(choice) {
@@ -1520,9 +1880,24 @@
     });
     if (changed) save();
   })();
+  // Add the starter plan from data.js once (degree, readings, certifications) as "Up next".
+  (() => {
+    const plan = D.starterPlan; if (!plan || !plan.id) return;
+    const seeded = store.get("skillmap.seeded", []);
+    if (seeded.includes(plan.id)) return;
+    (plan.planned || []).forEach((id) => { if (!courseStatus[id] && D.courses.some((c) => c.id === id)) courseStatus[id] = "planned"; });
+    (plan.certifications || []).forEach((tid) => {
+      const t = (D.certifications || []).find((x) => x.id === tid);
+      if (!t || certs.some((c) => c.templateId === tid)) return;
+      certs.push({ id: Date.now().toString(36) + tid, templateId: t.id, name: t.name, short: t.short, provider: t.provider, url: t.url, category: t.category, match: [...(t.match || [])],
+        exams: t.exams.map((e) => ({ id: e.id, code: e.code, name: e.name, format: e.format, url: e.url, covers: [...(e.covers || [])], status: "todo", date: "", steps: e.steps.map((text) => ({ text, done: false })) })) });
+    });
+    store.set("skillmap.seeded", [...seeded, plan.id]);
+    save();
+  })();
   buildGraph(); renderGraph(); settle(320); positionAll();
   refreshAll(); renderConceptPicker();
-  switchView(store.get(KEYS.tab, "log") === "graph" ? "graph" : "log");
+  switchView(["graph", "plan"].includes(store.get(KEYS.tab, "log")) ? store.get(KEYS.tab, "log") : "log");
   requestAnimationFrame(fit);
   window.addEventListener("resize", () => { clearTimeout(window.__fitT); window.__fitT = setTimeout(fit, 150); });
 })();

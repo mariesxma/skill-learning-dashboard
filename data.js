@@ -20,6 +20,10 @@ window.LEARNING_DATA = {
       summary: "Teaching computers to learn patterns from data, from classic machine learning to deep learning and large language models." },
     { id: "fin", name: "Finance", color: "#0f9f6e", anchor: [460, -60],
       summary: "How money, markets and companies work: valuing assets, managing risk, and building portfolios." },
+    { id: "ea", name: "Enterprise Architecture", color: "#0369a1", anchor: [660, -600],
+      summary: "Designing how an organization's business, data, applications and technology fit together, and planning how to get from today's state to the target. TOGAF is the most widely used framework." },
+    { id: "gov", name: "AI Governance & Privacy", color: "#dc2626", anchor: [660, 600],
+      summary: "Making AI trustworthy and lawful: risk frameworks (NIST AI RMF), management-system standards (ISO/IEC 42001), AI laws (EU AI Act and national rules), data protection (GDPR), and where privacy meets algorithmic bias and transparency." },
     { id: "consult", name: "Consulting & Communication", color: "#db2777", anchor: [-620, 560],
       summary: "The other half of a forward deployed engineer: breaking down messy client problems, communicating answers to executives, running discovery with stakeholders, and making the business case for AI." },
     { id: "aifin", name: "AI × Finance", color: "#e08a00", anchor: [0, 330],
@@ -42,10 +46,64 @@ window.LEARNING_DATA = {
     { id: "con-problem", domain: "consult", name: "Structured Problem Solving" },
     { id: "con-comm", domain: "consult", name: "Executive Communication" },
     { id: "con-client", domain: "consult", name: "Client & Stakeholder Skills" },
-    { id: "con-aistrat", domain: "consult", name: "AI Business Strategy" }
+    { id: "con-aistrat", domain: "consult", name: "AI Business Strategy" },
+    { id: "ea-framework", domain: "ea", name: "TOGAF & the ADM" },
+    { id: "ea-domains", domain: "ea", name: "Architecture Domains (BDAT)" },
+    { id: "ea-modeling", domain: "ea", name: "Modeling & Planning" },
+    { id: "ea-governance", domain: "ea", name: "Architecture Governance" },
+    { id: "gov-frameworks", domain: "gov", name: "Risk Frameworks & Standards" },
+    { id: "gov-law", domain: "gov", name: "AI Laws & Compliance" },
+    { id: "gov-privacy", domain: "gov", name: "Data Protection" },
+    { id: "gov-fairness", domain: "gov", name: "Bias, Fairness & Transparency" }
   ],
 
   concepts: [
+    // ── AI Governance · Risk Frameworks & Standards
+    { id: "nist-ai-rmf", topic: "gov-frameworks", label: "NIST AI RMF", definition: "The US National Institute of Standards and Technology's voluntary AI Risk Management Framework (1.0, January 2023), organized around four functions: Govern, Map, Measure and Manage.", related: ["ai-governance", "guardrails"] },
+    { id: "iso-42001", topic: "gov-frameworks", label: "ISO/IEC 42001 (AI management system)", definition: "The international standard (2023) for an AI management system: policies, objectives and processes for responsible AI, run with Plan-Do-Check-Act and certifiable like ISO 27001.", related: ["nist-ai-rmf", "arch-governance"] },
+    { id: "ai-risk-assessment", topic: "gov-frameworks", label: "AI risk & impact assessment", definition: "Systematically identifying what could go wrong with an AI system (harm to people, bias, security, misuse), how likely and severe it is, and which controls reduce it.", related: ["nist-ai-rmf", "evals"] },
+
+    // ── AI Governance · AI Laws & Compliance
+    { id: "eu-ai-act", topic: "gov-law", label: "EU AI Act", definition: "Regulation (EU) 2024/1689: a risk-based law that bans some AI practices, sets strict obligations for high-risk systems, and adds transparency duties for others, including general-purpose AI models.", related: ["ai-risk-assessment", "gdpr"] },
+    { id: "ai-conformity", topic: "gov-law", label: "Conformity, documentation & oversight", definition: "What high-risk AI must show: technical documentation, logging, human oversight, accuracy and robustness testing, and conformity assessment before going to market.", related: ["eu-ai-act", "llmops"] },
+    { id: "national-ai-laws", topic: "gov-law", label: "National AI laws & policies", definition: "AI rules beyond the EU, such as US state laws and sector guidance, China's rules on algorithms and generative AI, and other countries' frameworks. They differ in scope, so map which ones apply.", related: ["eu-ai-act"] },
+
+    // ── AI Governance · Data Protection
+    { id: "gdpr", topic: "gov-privacy", label: "GDPR", definition: "The EU General Data Protection Regulation (2016/679): rules for processing personal data, people's rights over their data, and accountability for organizations, with large fines for violations.", related: ["data-arch"] },
+    { id: "privacy-principles", topic: "gov-privacy", label: "Lawful basis & data minimization", definition: "Core data protection principles: have a lawful basis, use data only for stated purposes, collect no more than needed, keep it accurate and no longer than necessary, and secure it.", related: ["gdpr"] },
+    { id: "dpia", topic: "gov-privacy", label: "DPIA", definition: "Data Protection Impact Assessment: required before high-risk processing (common for AI) to describe the processing, assess risks to people, and plan mitigations.", related: ["gdpr", "ai-risk-assessment"] },
+    { id: "adm-rights", topic: "gov-privacy", label: "Automated decisions (GDPR Art. 22)", definition: "People's right not to be subject to solely automated decisions with legal or similarly significant effects, plus safeguards such as human review and meaningful information about the logic. This is where privacy law meets algorithmic fairness.", related: ["gdpr", "algorithmic-bias", "explainability", "credit-scoring"] },
+
+    // ── AI Governance · Bias, Fairness & Transparency
+    { id: "algorithmic-bias", topic: "gov-fairness", label: "Algorithmic bias", definition: "Systematic unfair outcomes from AI. NIST SP 1270 groups the sources into systemic, statistical/computational and human biases, so fixing the data alone is not enough.", related: ["classification", "credit-scoring", "fraud-detection"] },
+    { id: "fairness-metrics", topic: "gov-fairness", label: "Fairness metrics", definition: "Ways to measure whether outcomes differ across groups, e.g. demographic parity, equal opportunity and equalized odds. They can conflict, so the choice is a policy decision.", related: ["algorithmic-bias", "precision-recall", "evals"] },
+    { id: "explainability", topic: "gov-fairness", label: "Explainability (XAI)", definition: "Techniques and practices that make model decisions understandable to the people affected and to reviewers, e.g. feature attributions, reason codes and counterfactuals.", related: ["adm-rights", "neural-net"] },
+    { id: "transparency-docs", topic: "gov-fairness", label: "Transparency documentation", definition: "Model cards, datasheets and system cards that record what a model is for, how it was built and tested, and its known limits. Many AI laws now expect this.", related: ["ai-conformity", "evals"] },
+
+    // ── Enterprise Architecture · TOGAF & the ADM
+    { id: "togaf", topic: "ea-framework", label: "TOGAF Standard", definition: "The Open Group's framework for enterprise architecture: a method (the ADM), a content framework, and guidance for governing and evolving architecture across an organization." },
+    { id: "adm", topic: "ea-framework", label: "Architecture Development Method (ADM)", definition: "TOGAF's core cycle: Preliminary, A Vision, B Business, C Information Systems, D Technology, E Opportunities & Solutions, F Migration Planning, G Implementation Governance, H Change Management, with Requirements Management at the center.", related: ["togaf"] },
+    { id: "arch-content", topic: "ea-framework", label: "Deliverables, artifacts & building blocks", definition: "TOGAF's content framework: deliverables are formal work products, artifacts are catalogs, matrices and diagrams, and building blocks are reusable components of the architecture.", related: ["adm"] },
+    { id: "enterprise-continuum", topic: "ea-framework", label: "Enterprise Continuum", definition: "A way to classify architecture and solution assets from generic (foundation) to organization-specific, so teams can reuse what already exists.", related: ["togaf"] },
+    { id: "arch-repository", topic: "ea-framework", label: "Architecture Repository", definition: "Where an organization stores its architecture assets: the metamodel, landscapes, reference models, standards and governance records.", related: ["enterprise-continuum"] },
+
+    // ── Enterprise Architecture · Domains (BDAT)
+    { id: "business-arch", topic: "ea-domains", label: "Business architecture", definition: "How the organization creates value: its strategy, capabilities, value streams, organization structure and key business processes.", related: ["adm"] },
+    { id: "data-arch", topic: "ea-domains", label: "Data architecture", definition: "The structure of an organization's data assets and how data flows, is owned and is governed across systems.", related: ["databases", "business-arch"] },
+    { id: "application-arch", topic: "ea-domains", label: "Application architecture", definition: "The applications an organization runs, what each is responsible for, and how they integrate (often through APIs).", related: ["apis", "data-arch"] },
+    { id: "technology-arch", topic: "ea-domains", label: "Technology architecture", definition: "The infrastructure the applications run on: platforms, cloud, networks, security and hosting standards.", related: ["system-design", "application-arch", "ai-architecture"] },
+
+    // ── Enterprise Architecture · Modeling & Planning
+    { id: "archimate", topic: "ea-modeling", label: "ArchiMate modeling", definition: "The Open Group's visual modeling language for enterprise architecture, with layers for business, application and technology and the relationships between them.", related: ["togaf", "business-arch"] },
+    { id: "capability-mapping", topic: "ea-modeling", label: "Capability-based planning", definition: "Describing what the business must be able to do (capabilities), assessing each one, and planning investments around the gaps.", related: ["business-arch", "use-case-prioritization"] },
+    { id: "value-streams", topic: "ea-modeling", label: "Value streams", definition: "The end-to-end stages through which an organization delivers value to a customer, used to see which capabilities matter most.", related: ["capability-mapping"] },
+    { id: "migration-planning", topic: "ea-modeling", label: "Roadmaps & migration planning", definition: "Comparing baseline and target architectures (gap analysis), then sequencing the work into transition architectures and a roadmap.", related: ["adm", "proposals"] },
+
+    // ── Enterprise Architecture · Governance
+    { id: "arch-principles", topic: "ea-governance", label: "Architecture principles", definition: "Agreed rules that guide architecture decisions, each with a rationale and implications, e.g. 'Data is an asset'.", related: ["togaf"] },
+    { id: "arch-governance", topic: "ea-governance", label: "Architecture governance", definition: "How architecture decisions are made, checked and enforced: architecture boards, compliance reviews, contracts and dispensations.", related: ["arch-principles", "ai-governance"] },
+    { id: "ea-stakeholders", topic: "ea-governance", label: "Stakeholders, concerns & viewpoints", definition: "Identifying who cares about the architecture, what they worry about, and showing each group a view that answers their concerns.", related: ["stakeholder-mgmt", "arch-governance"] },
+
     // ── Consulting · Structured Problem Solving
     { id: "mece", topic: "con-problem", label: "MECE thinking", definition: "Mutually Exclusive, Collectively Exhaustive: splitting a problem into parts that don't overlap and together cover everything, so nothing is double-counted or missed." },
     { id: "issue-tree", topic: "con-problem", label: "Issue trees", definition: "Breaking a big question into smaller sub-questions, branch by branch, until each one can be answered with analysis.", related: ["mece", "trees-graphs"] },
@@ -185,7 +243,125 @@ window.LEARNING_DATA = {
     { id: "fin-llm", domain: "aifin", label: "LLMs for finance", definition: "Applying LLMs and RAG to research reports, filings and customer service, such as summarizing a 10-K or answering questions over it.", related: ["rag", "statements", "agents", "mcp"] }
   ],
 
+  // Your plan: added once to My courses as "Up next" (bump the id to add new items later).
+  // The Plan tab: parallel lanes on a timeline. Hours are rough estimates; each lane's weekly
+  // hours can be changed on the page. `ref` links a course/degree/reading, `cert`+`exam` a
+  // certification exam (milestone), `match` one of your own courses by keyword.
+  roadmap: {
+    lanes: [
+      { id: "ai", name: "AI engineering", note: "Depth track: learn it, then build it", topic: "ai", hoursPerWeek: 4,
+        items: [
+          { id: "rm-fde", match: "fde", label: "AI FDE / Agentic AI Architect course", hours: 30 },
+          { id: "rm-mcp-project", label: "Project: build an MCP server for finance data", hours: 20, after: ["rm-fde"], kind: "project", match: "mcp server" },
+          { id: "rm-agents-project", label: "Project: multi-agent workflow with evals & guardrails", hours: 25, after: ["rm-mcp-project"], kind: "project" }
+        ] },
+      { id: "gov", name: "AI governance → AIGP → TOGAF", note: "One exam at a time; readings double as exam prep", topic: "gov", hoursPerWeek: 4,
+        items: [
+          { id: "rm-gov-reading", refs: ["c-genai-everyone", "r-nist-ai-rmf", "r-eu-ai-act", "r-gdpr", "r-iso-42001", "r-nist-1270"],
+            label: "Generative AI for Everyone + 5 official readings (NIST AI RMF, EU AI Act, GDPR, ISO/IEC 42001, NIST SP 1270)", hours: 31 },
+          { id: "rm-aigp", cert: "aigp", exam: "aigp-exam", label: "AIGP exam prep", hours: 35, after: ["rm-gov-reading"] },
+          { id: "rm-togaf-std", ref: "c-togaf-standard", hours: 15, after: ["rm-aigp"] },
+          { id: "rm-togaf-1", cert: "togaf10", exam: "foundation", label: "TOGAF Part 1 prep (OGEA-101)", hours: 25, after: ["rm-togaf-std"] },
+          { id: "rm-togaf-2", cert: "togaf10", exam: "practitioner", label: "TOGAF Part 2 prep (OGEA-102)", hours: 30, after: ["rm-togaf-1"] }
+        ] },
+      { id: "cs", name: "CS foundations → MS-CS", note: "Steady base; the degree starts after CS50x", topic: "cs", hoursPerWeek: 5,
+        items: [
+          { id: "rm-cs50x", ref: "c-cs50x", hours: 110 },
+          { id: "rm-mscs-pathway", ref: "d-mscs", label: "MS-CS pathway courses (performance-based admission)", hours: 150, after: ["rm-cs50x"] },
+          { id: "rm-mscs", ref: "d-mscs", label: "MS-CS degree courses, one at a time", hours: 600, after: ["rm-mscs-pathway"], open: true }
+        ] },
+      { id: "consult", name: "Consulting & communication", note: "Light weekly habit", topic: "consult", hoursPerWeek: 1,
+        items: [
+          { id: "rm-emory-1", ref: "c-emory-present", hours: 7 },
+          { id: "rm-emory-2", ref: "c-emory-problem", hours: 7, after: ["rm-emory-1"] },
+          { id: "rm-memos", label: "Habit: a one-page pyramid memo + 3-minute pitch per project", hours: 40, after: ["rm-emory-2"], open: true }
+        ] }
+    ],
+    principles: [
+      "One deep track, the others light: keep moving on every lane, but never prepare for two exams at the same time.",
+      "Finish CS50x before the MS-CS pathway courses: the topics overlap, the stakes are lower, and the degree admits on performance.",
+      "Read the governance sources before AIGP prep: NIST AI RMF, the EU AI Act, GDPR and ISO/IEC 42001 are the exam's body of knowledge.",
+      "AIGP before TOGAF: it overlaps with your AI work; TOGAF is a separate body of knowledge best done in one focused block.",
+      "Turn each course into a project quickly; projects are what move skills to Apply.",
+      "Consulting is a habit, not a course: after each project, write a one-page pyramid memo and record a 3-minute pitch."
+    ]
+  },
+
+  starterPlan: {
+    id: "plan-2026-11",
+    certifications: ["togaf10", "aigp"],
+    planned: ["d-mscs", "r-nist-ai-rmf", "r-iso-42001", "r-eu-ai-act", "r-gdpr", "r-nist-1270", "c-togaf-standard"]
+  },
+
+  // Certification paths you can add on the My courses page. Links point only to official sites;
+  // your own study materials are recognized by the `match` keywords when you paste their links.
+  certifications: [
+    { id: "aigp", name: "IAPP Artificial Intelligence Governance Professional", short: "AIGP", provider: "IAPP",
+      url: "https://iapp.org/certify/aigp/", category: "gov", match: ["aigp"],
+      exams: [
+        { id: "aigp-exam", code: "AIGP", name: "AIGP certification exam",
+          format: "100 multiple-choice questions (15 unscored) · 3 hours including an optional 15-minute break", url: "https://iapp.org/certify/aigp-candidate-handbook",
+          covers: ["ai-governance", "nist-ai-rmf", "iso-42001", "ai-risk-assessment", "eu-ai-act", "ai-conformity", "national-ai-laws", "gdpr", "privacy-principles", "dpia", "adm-rights", "algorithmic-bias", "fairness-metrics", "transparency-docs"],
+          steps: [
+            "Download the current AIGP Body of Knowledge and Exam Blueprint from iapp.org",
+            "Domain I: foundations of AI governance (AI basics, risks and harms, responsible AI principles)",
+            "Domain II: laws, standards and frameworks (EU AI Act, GDPR, NIST AI RMF, ISO/IEC 42001)",
+            "Domain III: governing AI development (risk assessment, data, testing, documentation)",
+            "Domain IV: governing AI deployment and use (monitoring, incidents, third-party AI)",
+            "Take timed practice exams until you are comfortably above the pass mark",
+            "Book the exam"
+          ] }
+      ] },
+    { id: "togaf10", name: "TOGAF® Enterprise Architecture (10th Edition)", short: "TOGAF 10", provider: "The Open Group",
+      url: "https://www.opengroup.org/togaf", category: "ea", match: ["togaf", "ogea"],
+      exams: [
+        { id: "foundation", code: "OGEA-101", name: "Part 1: TOGAF Enterprise Architecture Foundation",
+          format: "40 multiple-choice questions · 60 minutes · closed book · pass mark 60%", url: "https://certification.opengroup.org/node/14",
+          covers: ["togaf", "adm", "arch-content", "enterprise-continuum", "arch-repository", "arch-principles", "arch-governance", "ea-stakeholders"],
+          steps: [
+            "Read the TOGAF Standard fundamental content: introduction and core concepts",
+            "Learn every ADM phase (Preliminary, A–H, Requirements Management): purpose, inputs and outputs",
+            "Learn the content framework: deliverables, artifacts and building blocks",
+            "Learn the Enterprise Continuum and the Architecture Repository",
+            "Learn architecture principles, governance and stakeholder management",
+            "Take full timed practice tests until you score 75%+ consistently",
+            "Book the exam"
+          ] },
+        { id: "practitioner", code: "OGEA-102", name: "Part 2: TOGAF Enterprise Architecture Practitioner",
+          format: "8 scenario questions · 90 minutes · open book · gradient scoring · pass mark 60%", url: "https://certification.opengroup.org/node/14",
+          covers: ["adm", "business-arch", "data-arch", "application-arch", "technology-arch", "capability-mapping", "value-streams", "migration-planning"],
+          steps: [
+            "Pass Part 1 first (or plan for the combined OGEA-103 exam)",
+            "Practice applying the ADM to scenarios: choose the best answer, not just a correct one",
+            "Learn how to tailor the ADM and use the series guides (e.g. business scenarios, capability-based planning)",
+            "Practice finding things fast in the standard (the exam is open book)",
+            "Do timed scenario practice: about 11 minutes per question",
+            "Book the exam"
+          ] }
+      ] }
+  ],
+
   courses: [
+    // Degree (type: "degree")
+    { id: "d-mscs", type: "degree", title: "Master of Science in Computer Science (CU Boulder, on Coursera)", provider: "University of Colorado Boulder / Coursera", url: "https://www.coursera.org/degrees/ms-computer-science-boulder", cost: "Tuition (see official page)", level: "Advanced",
+      covers: ["big-o", "sorting-searching", "trees-graphs", "recursion", "discrete-math", "os-processes", "networking", "databases", "system-design", "how-computers-work", "probability-stats", "linear-algebra"] },
+
+    // Reading: official standards, frameworks and laws (type: "reading")
+    { id: "r-nist-ai-rmf", type: "reading", title: "NIST AI Risk Management Framework (AI RMF 1.0)", provider: "NIST", url: "https://www.nist.gov/itl/ai-risk-management-framework", cost: "Free", level: "Intermediate",
+      covers: ["nist-ai-rmf", "ai-risk-assessment", "ai-governance"] },
+    { id: "r-iso-42001", type: "reading", title: "ISO/IEC 42001:2023 AI management system", provider: "ISO", url: "https://www.iso.org/standard/42001", cost: "Paid standard", level: "Intermediate",
+      covers: ["iso-42001", "ai-risk-assessment"] },
+    { id: "r-eu-ai-act", type: "reading", title: "EU AI Act: Regulation (EU) 2024/1689", provider: "EUR-Lex (European Union)", url: "https://eur-lex.europa.eu/eli/reg/2024/1689/oj", cost: "Free", level: "Intermediate",
+      covers: ["eu-ai-act", "ai-conformity", "transparency-docs"] },
+    { id: "r-gdpr", type: "reading", title: "GDPR: Regulation (EU) 2016/679", provider: "EUR-Lex (European Union)", url: "https://eur-lex.europa.eu/eli/reg/2016/679/oj", cost: "Free", level: "Intermediate",
+      covers: ["gdpr", "privacy-principles", "dpia", "adm-rights"] },
+    { id: "r-nist-1270", type: "reading", title: "NIST SP 1270: Towards a Standard for Identifying and Managing Bias in AI", provider: "NIST", url: "https://doi.org/10.6028/NIST.SP.1270", cost: "Free", level: "Intermediate",
+      covers: ["algorithmic-bias", "fairness-metrics", "explainability"] },
+
+    // Enterprise Architecture (official source only; add your own study materials on My courses)
+    { id: "c-togaf-standard", type: "reading", title: "The TOGAF Standard, 10th Edition (official)", provider: "The Open Group", url: "https://www.opengroup.org/togaf", cost: "Free to read (registration)", level: "Intermediate",
+      covers: ["togaf", "adm", "arch-content", "enterprise-continuum", "arch-repository", "business-arch", "data-arch", "application-arch", "technology-arch", "migration-planning", "arch-principles", "arch-governance", "ea-stakeholders", "capability-mapping"] },
+
     // Consulting & Communication
     { id: "c-emory-present", title: "Consulting Presentations and Storytelling", provider: "Coursera / Emory University", url: "https://www.coursera.org/learn/management-consulting-presentations", cost: "Subscription (7-day trial / financial aid)", level: "Beginner",
       covers: ["pyramid-principle", "storyline", "data-storytelling", "slide-design", "exec-presence"] },

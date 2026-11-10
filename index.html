@@ -8,7 +8,7 @@
     // Apply the saved theme before the page paints, so there is no flash of the wrong colors.
     try { var t = JSON.parse(localStorage.getItem("skillmap.theme")); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=12" />
+  <link rel="stylesheet" href="styles.css?v=15" />
 </head>
 <body>
   <header class="topbar">
@@ -18,6 +18,7 @@
     </div>
     <nav class="tabs" role="tablist">
       <button class="tab active" role="tab" data-view="log" aria-selected="true">My courses <span id="log-count" class="pill">0</span></button>
+      <button class="tab" role="tab" data-view="plan" aria-selected="false">Plan</button>
       <button class="tab" role="tab" data-view="graph" aria-selected="false">Skill map</button>
     </nav>
     <div id="stats" class="stats" aria-label="Progress by domain"></div>
@@ -29,6 +30,37 @@
   </header>
 
   <!-- ─────────── Graph view ─────────── -->
+  <main id="view-plan" class="view">
+    <section class="plan-wrap">
+      <div class="card plan-head">
+        <div>
+          <h2>Learning plan</h2>
+          <p class="meta" id="plan-summary"></p>
+        </div>
+        <div class="layout-toggle" role="group" aria-label="Time range">
+          <span class="lt-label">Show</span>
+          <button type="button" class="rng-btn" data-months="12">12 mo</button>
+          <button type="button" class="rng-btn" data-months="18">18 mo</button>
+          <button type="button" class="rng-btn" data-months="24">24 mo</button>
+        </div>
+      </div>
+      <div class="card plan-card">
+        <div id="timeline" class="timeline-scroll" aria-label="Timeline with parallel learning lanes"></div>
+        <div class="plan-legend">
+          <span><i class="pl pl-bar"></i>Planned</span>
+          <span><i class="pl pl-prog"></i>In progress (filled part = done)</span>
+          <span><i class="pl pl-ms">◆</i>Exam</span>
+          <span><i class="pl pl-open"></i>Ongoing</span>
+          <span class="meta">Hours are rough estimates. Change each lane's hours per week to fit your life; the plan re-flows.</span>
+        </div>
+      </div>
+      <details class="card plan-why" open>
+        <summary><h2>Why this order</h2></summary>
+        <ol id="plan-principles"></ol>
+      </details>
+    </section>
+  </main>
+
   <main id="view-graph" class="view">
     <div class="graph-wrap">
       <div class="toolbar">
@@ -74,11 +106,25 @@
       <div id="dash-stats" class="dash-stats" aria-label="Progress summary"></div>
 
       <div class="card quick-add">
-        <h2>Add a course</h2>
-        <input id="q-url" type="url" placeholder="Paste a course link: Udemy, Coursera, YouTube, CS50…" autocomplete="off" />
+        <div class="add-head">
+          <h2>Add to my learning</h2>
+          <button type="button" class="btn small link" id="q-cert">🏅 Add a certification path</button>
+        </div>
+        <input id="q-url" type="url" placeholder="Paste a link: course, degree, standard or law to read… (Udemy, Coursera, iso.org, nist.gov…)" autocomplete="off" />
+        <div id="cert-form-slot"></div>
         <div id="q-known" class="match" hidden aria-live="polite"></div>
         <div id="q-preview" class="q-preview" hidden>
-          <label>Title<input id="q-title" type="text" /></label>
+          <div class="row q-fields">
+            <label class="grow">Title<input id="q-title" type="text" /></label>
+            <label>Type
+              <select id="q-type">
+                <option value="course">📘 Course</option>
+                <option value="degree">🎓 Degree</option>
+                <option value="reading">📄 Reading</option>
+                <option value="project">🛠 Project</option>
+              </select>
+            </label>
+          </div>
           <div class="q-actions">
             <button type="button" class="btn primary" id="q-start">Start learning</button>
             <button type="button" class="btn" id="q-later">Save for later</button>
@@ -90,32 +136,21 @@
       </div>
 
       <div class="filter-bar">
-        <div id="cat-filter" class="cat-filter" role="toolbar" aria-label="Filter by category"></div>
-        <div class="layout-toggle" role="group" aria-label="Layout">
+        <div id="cat-filter" class="cat-filter" role="toolbar" aria-label="Filter by topic"></div>
+        <div class="view-ctrls">
+        <div class="layout-toggle group-toggle" role="group" aria-label="Group by">
+          <span class="lt-label">Group by</span>
+          <button type="button" class="gb-btn" data-group="type" title="Degrees, certifications, courses, reading, projects">Type</button>
+          <button type="button" class="gb-btn" data-group="topic" title="AI, Enterprise Architecture, CS, …">Topic</button>
+        </div>
+        <div class="layout-toggle" id="layout-toggle" role="group" aria-label="Layout">
           <button type="button" class="lt-btn" data-layout="columns" title="One column per category">▦ Columns</button>
           <button type="button" class="lt-btn" data-layout="list" title="Everything in one list">☰ List</button>
         </div>
+        </div>
       </div>
 
-      <div id="board" class="board" hidden></div>
-
-      <div id="list-view" class="list-view">
-
-      <section class="card">
-        <div class="sec-head"><h2>Learning now</h2></div>
-        <div id="now-list" class="now-list"></div>
-      </section>
-
-      <section class="card">
-        <div class="sec-head"><h2>Up next</h2></div>
-        <div id="next-list" class="compact-list"></div>
-      </section>
-
-      <details class="card done-card" id="done-card">
-        <summary><h2>Completed <span id="done-count" class="meta"></span></h2></summary>
-        <div id="done-list" class="compact-list"></div>
-      </details>
-      </div>
+      <div id="groups" class="groups" aria-live="polite"></div>
 
       <details class="card full-form" id="full-form">
         <summary><h2>Add or edit with all details</h2><span class="meta">Type (course or project), skills it teaches, curriculum sync, dates, notes</span></summary>
@@ -142,6 +177,8 @@
           <label>Type
             <select id="f-kind" title="Completed projects lift their concepts to Apply; courses to Understand">
               <option value="course">Course</option>
+              <option value="degree">Degree program</option>
+              <option value="reading">Reading (standard, law, paper, book)</option>
               <option value="project">Project (something I built)</option>
             </select>
           </label>
@@ -189,7 +226,7 @@
     </section>
   </main>
 
-  <script src="data.js?v=12"></script>
-  <script src="app.js?v=12"></script>
+  <script src="data.js?v=15"></script>
+  <script src="app.js?v=15"></script>
 </body>
 </html>
