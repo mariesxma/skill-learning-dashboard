@@ -244,6 +244,49 @@ window.LEARNING_DATA = {
   ],
 
   // Your plan: added once to My courses as "Up next" (bump the id to add new items later).
+  // The Plan tab: parallel lanes on a timeline. Hours are rough estimates; each lane's weekly
+  // hours can be changed on the page. `ref` links a course/degree/reading, `cert`+`exam` a
+  // certification exam (milestone), `match` one of your own courses by keyword.
+  roadmap: {
+    lanes: [
+      { id: "ai", name: "AI engineering", note: "Depth track: learn it, then build it", topic: "ai", hoursPerWeek: 4,
+        items: [
+          { id: "rm-fde", match: "fde", label: "AI FDE / Agentic AI Architect course", hours: 30 },
+          { id: "rm-mcp-project", label: "Project: build an MCP server for finance data", hours: 20, after: ["rm-fde"], kind: "project", match: "mcp server" },
+          { id: "rm-agents-project", label: "Project: multi-agent workflow with evals & guardrails", hours: 25, after: ["rm-mcp-project"], kind: "project" }
+        ] },
+      { id: "gov", name: "AI governance → AIGP → TOGAF", note: "One exam at a time; readings double as exam prep", topic: "gov", hoursPerWeek: 4,
+        items: [
+          { id: "rm-gov-reading", refs: ["c-genai-everyone", "r-nist-ai-rmf", "r-eu-ai-act", "r-gdpr", "r-iso-42001", "r-nist-1270"],
+            label: "Generative AI for Everyone + 5 official readings (NIST AI RMF, EU AI Act, GDPR, ISO/IEC 42001, NIST SP 1270)", hours: 31 },
+          { id: "rm-aigp", cert: "aigp", exam: "aigp-exam", label: "AIGP exam prep", hours: 35, after: ["rm-gov-reading"] },
+          { id: "rm-togaf-std", ref: "c-togaf-standard", hours: 15, after: ["rm-aigp"] },
+          { id: "rm-togaf-1", cert: "togaf10", exam: "foundation", label: "TOGAF Part 1 prep (OGEA-101)", hours: 25, after: ["rm-togaf-std"] },
+          { id: "rm-togaf-2", cert: "togaf10", exam: "practitioner", label: "TOGAF Part 2 prep (OGEA-102)", hours: 30, after: ["rm-togaf-1"] }
+        ] },
+      { id: "cs", name: "CS foundations → MS-CS", note: "Steady base; the degree starts after CS50x", topic: "cs", hoursPerWeek: 5,
+        items: [
+          { id: "rm-cs50x", ref: "c-cs50x", hours: 110 },
+          { id: "rm-mscs-pathway", ref: "d-mscs", label: "MS-CS pathway courses (performance-based admission)", hours: 150, after: ["rm-cs50x"] },
+          { id: "rm-mscs", ref: "d-mscs", label: "MS-CS degree courses, one at a time", hours: 600, after: ["rm-mscs-pathway"], open: true }
+        ] },
+      { id: "consult", name: "Consulting & communication", note: "Light weekly habit", topic: "consult", hoursPerWeek: 1,
+        items: [
+          { id: "rm-emory-1", ref: "c-emory-present", hours: 7 },
+          { id: "rm-emory-2", ref: "c-emory-problem", hours: 7, after: ["rm-emory-1"] },
+          { id: "rm-memos", label: "Habit: a one-page pyramid memo + 3-minute pitch per project", hours: 40, after: ["rm-emory-2"], open: true }
+        ] }
+    ],
+    principles: [
+      "One deep track, the others light: keep moving on every lane, but never prepare for two exams at the same time.",
+      "Finish CS50x before the MS-CS pathway courses: the topics overlap, the stakes are lower, and the degree admits on performance.",
+      "Read the governance sources before AIGP prep: NIST AI RMF, the EU AI Act, GDPR and ISO/IEC 42001 are the exam's body of knowledge.",
+      "AIGP before TOGAF: it overlaps with your AI work; TOGAF is a separate body of knowledge best done in one focused block.",
+      "Turn each course into a project quickly; projects are what move skills to Apply.",
+      "Consulting is a habit, not a course: after each project, write a one-page pyramid memo and record a 3-minute pitch."
+    ]
+  },
+
   starterPlan: {
     id: "plan-2026-11",
     certifications: ["togaf10", "aigp"],

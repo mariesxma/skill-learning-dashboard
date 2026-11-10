@@ -880,6 +880,7 @@
   function refreshAll() {
     nodes.forEach(drawNode); applyFocus(); renderStats(); renderPanel(); renderLog();
     if (typeof renderKnownMatch === "function" && $("f-url")) renderKnownMatch();
+    if (document.body.dataset.view === "plan" && typeof renderPlan === "function") renderPlan();
   }
   function rebuild() {
     buildGraph(); renderGraph(); settle(60); reheat(0.4); refreshAll();
@@ -909,6 +910,7 @@
     document.querySelectorAll(".view").forEach((v) => v.classList.toggle("active", v.id === "view-" + name));
     document.body.dataset.view = name; store.set(KEYS.tab, name);
     if (name === "graph" && view.k === 1 && view.x === 0) requestAnimationFrame(fit);
+    if (name === "plan" && typeof renderPlan === "function") renderPlan();
   }
   document.querySelectorAll(".tab").forEach((t) => t.addEventListener("click", () => switchView(t.dataset.view)));
 
@@ -1679,6 +1681,167 @@
     ev.target.value = "";
   });
 
+  // ───────────────────────── Plan: parallel lanes on a timeline ─────────────────────────
+  let laneHours = store.get("skillmap.laneHours", {}) || {};
+  let planMonths = store.get("skillmap.planMonths", 18);
+  const WEEK_MS = 7 * 86400000;
+  const fmtMonth = (d) => d.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+  const fmtDay = (d) => d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+
+  // What is the current state of a plan item? Reads courses, your own entries and certifications.
+  function resolvePlanItem(item) {
+    const out = { label: item.label, url: "", status: "planned", pct: 0, examDate: "", kind: item.kind || "" };
+    let course = null;
+    if (item.ref) course = allCourses().find((c) => c.id === item.ref);
+    if (!course && item.match) course = allCourses().find((c) => c.mine && `${c.title} ${c.url}`.toLowerCase().includes(item.match));
+    if (course) {
+      Object.assign(out, { label: item.label || course.title, url: course.url, status: course.status === "none" ? "planned" : course.status, pct: coursePct(course) });
+    }
+    if (item.refs) {
+      // several short items shown as one bar (e.g. a set of readings)
+      const list = item.refs.map((id) => allCourses().find((c) => c.id === id)).filter(Boolean);
+      const pcts = list.map((c) => (c.status === "completed" ? 100 : coursePct(c)));
+      out.pct = list.length ? Math.round(pcts.reduce((a, b) => a + b, 0) / list.length) : 0;
+      out.status = list.length && list.every((c) => c.status === "completed") ? "completed" : list.some((c) => c.status === "in-progress" || c.status === "completed") ? "in-progress" : "planned";
+      out.details = list.map((c) => `${c.status === "completed" ? "✓" : c.status === "in-progress" ? "▸" : "·"} ${c.title}`);
+    }
+    if (item.cert) {
+      const t = (D.certifications || []).find((x) => x.id === item.cert);
+      const mine = certs.find((c) => c.templateId === item.cert);
+      const ex = mine && mine.exams.find((e) => e.id === item.exam);
+      const tex = t && t.exams.find((e) => e.id === item.exam);
+      out.url = (tex && tex.url) || (t && t.url) || "";
+      out.code = (tex && tex.code) || "";
+      if (ex) {
+        const steps = ex.steps.length ? ex.steps.filter((x) => x.done).length / ex.steps.length : 0;
+        out.status = ex.status === "passed" ? "completed" : ex.status === "todo" && !steps ? "planned" : "in-progress";
+        out.pct = ex.status === "passed" ? 100 : Math.round(steps * 100);
+        out.examDate = ex.date || "";
+      }
+    }
+    // the degree is split into pathway + degree courses; only the first is "in progress"
+    if (item.id === "rm-mscs" && out.status === "in-progress") out.status = "planned";
+    return out;
+  }
+
+  function schedulePlan() {
+    const rm = D.roadmap; if (!rm) return { lanes: [], ends: {} };
+    const ends = {};
+    const lanes = rm.lanes.map((lane) => {
+      const perWeek = Math.max(0, Number(laneHours[lane.id] ?? lane.hoursPerWeek) || 0);
+      let cursor = 0; const done = [], bars = [];
+      lane.items.forEach((item) => {
+        const st = resolvePlanItem(item);
+        const remaining = st.status === "completed" ? 0 : item.hours * (1 - st.pct / 100);
+        const depEnd = Math.max(0, ...(item.after || []).map((a) => ends[a] ?? 0));
+        const start = Math.max(cursor, depEnd);
+        const weeks = remaining === 0 ? 0 : perWeek > 0 ? remaining / perWeek : Infinity;
+        const end = start + weeks;
+        ends[item.id] = end;
+        if (st.status === "completed") { done.push({ item, st }); return; }
+        bars.push({ item, st, start, end, weeks, remaining });
+        cursor = item.open ? cursor : end;
+      });
+      return { lane, perWeek, done, bars, topicColor: (catById(lane.topic) || catById("other")).color };
+    });
+    return { lanes, ends };
+  }
+
+  function renderPlan() {
+    const rm = D.roadmap; const box = $("timeline"); if (!rm || !box) return;
+    document.querySelectorAll(".rng-btn").forEach((b) => b.classList.toggle("on", +b.dataset.months === planMonths));
+    const { lanes } = schedulePlan();
+    const t0 = new Date(today() + "T00:00:00");
+    const weeksShown = planMonths * 4.345;
+    const W = Math.max(14, Math.min(28, Math.round(1100 / weeksShown)));   // px per week
+    const trackW = Math.ceil(weeksShown * W);
+    const dateAt = (w) => new Date(t0.getTime() + w * WEEK_MS);
+    const xOf = (w) => Math.round(w * W);
+
+    box.textContent = "";
+    box.style.setProperty("--track-w", trackW + "px");
+    // header: months
+    const head = h("div", { class: "tl-row tl-head" }, h("div", { class: "tl-label" }, h("span", { class: "meta", text: "Lane · hours per week" })));
+    const months = h("div", { class: "tl-track tl-months" });
+    const m = new Date(t0.getFullYear(), t0.getMonth() + 1, 1);
+    const firstGap = (new Date(t0.getFullYear(), t0.getMonth() + 1, 1) - t0) / WEEK_MS * W;
+    months.append(h("span", { class: "tl-month first", style: "left:0", text: firstGap > 70 ? fmtMonth(t0) : firstGap > 34 ? t0.toLocaleDateString("en-US", { month: "short" }) : "" }));
+    while ((m - t0) / WEEK_MS < weeksShown) {
+      const w = (m - t0) / WEEK_MS;
+      months.append(h("span", { class: "tl-month" + (m.getMonth() === 0 ? " year" : ""), style: `left:${xOf(w)}px`, text: m.getMonth() === 0 ? String(m.getFullYear()) : m.toLocaleDateString("en-US", { month: "short" }) }));
+      m.setMonth(m.getMonth() + 1);
+    }
+    head.append(months); box.append(head);
+
+    const gridLines = () => {
+      const g = h("div", { class: "tl-grid" });
+      const mm = new Date(t0.getFullYear(), t0.getMonth() + 1, 1);
+      while ((mm - t0) / WEEK_MS < weeksShown) { g.append(h("span", { class: "tl-gl" + (mm.getMonth() === 0 ? " year" : ""), style: `left:${xOf((mm - t0) / WEEK_MS)}px` })); mm.setMonth(mm.getMonth() + 1); }
+      g.append(h("span", { class: "tl-today", style: "left:0" }));
+      return g;
+    };
+
+    const milestones = [];
+    let totalPerWeek = 0;
+    lanes.forEach(({ lane, perWeek, done, bars, topicColor }) => {
+      totalPerWeek += perWeek;
+      const setHours = (v) => { laneHours[lane.id] = Math.max(0, Math.min(40, v)); store.set("skillmap.laneHours", laneHours); renderPlan(); };
+      const finite = bars.filter((b) => isFinite(b.end) && !b.item.open);
+      const finish = finite.length ? dateAt(Math.max(...finite.map((b) => b.end))) : null;
+      const label = h("div", { class: "tl-label", style: `--c:${topicColor}` },
+        h("div", { class: "tl-lane-name", text: lane.name }),
+        h("div", { class: "meta", text: lane.note || "" }),
+        h("div", { class: "tl-hours" },
+          h("button", { class: "btn small", "aria-label": `Fewer hours for ${lane.name}`, text: "−", onclick: () => setHours(perWeek - 1) }),
+          h("span", { class: "tl-h", text: `${perWeek} h/wk` }),
+          h("button", { class: "btn small", "aria-label": `More hours for ${lane.name}`, text: "+", onclick: () => setHours(perWeek + 1) })),
+        h("div", { class: "meta tl-finish", text: perWeek === 0 ? "Paused" : finish ? `Done ≈ ${fmtMonth(finish)}` : "" }),
+        done.length ? h("div", { class: "tl-done", title: done.map((d) => "✓ " + (d.st.label || d.item.label)).join("\n"), text: `✓ ${done.length} done` }) : null);
+      const track = h("div", { class: "tl-track" }, gridLines());
+      let hiddenLater = 0;
+      bars.forEach((b) => {
+        const st = b.st, inProg = st.status === "in-progress";
+        const left = xOf(b.start);
+        if (left >= trackW) { hiddenLater++; return; }
+        const rawW = isFinite(b.end) ? xOf(b.end) - left : trackW - left;
+        const width = b.item.open ? trackW - left : Math.max(8, Math.min(rawW, trackW - left));
+        const cut = !b.item.open && left + rawW > trackW;
+        const when = isFinite(b.end) ? `${fmtDay(dateAt(b.start))} → ${fmtDay(dateAt(b.end))}` : "paused (0 h/wk)";
+        const tip = `${st.label}\n${STATUS_LABEL[st.status] || st.status}${inProg ? ` · ${st.pct}% done` : ""}\n≈ ${Math.round(b.remaining)} h left · ${b.item.open ? "ongoing" : when}${st.details ? "\n\n" + st.details.join("\n") : ""}${st.url ? "\nClick to open" : ""}`;
+        const bar = h(st.url ? "a" : "div", {
+          class: "tl-bar" + (inProg ? " prog" : "") + (b.item.open ? " open" : "") + (cut ? " cut" : "") + (b.item.kind === "project" ? " project" : ""),
+          style: `left:${left}px;width:${width}px;--c:${topicColor};--p:${inProg ? st.pct : 0}%`, title: tip,
+          href: st.url ? safeUrl(st.url) : null, target: st.url ? "_blank" : null, rel: st.url ? "noopener noreferrer" : null },
+          h("span", { class: "tl-bar-text", text: (b.item.kind === "project" ? "🛠 " : "") + st.label }));
+        track.append(bar);
+        if (b.item.cert && isFinite(b.end)) {
+          const set = st.examDate ? (new Date(st.examDate + "T00:00:00") - t0) / WEEK_MS : null;
+          const w = set != null ? set : b.end;
+          const late = set != null && set < b.end;
+          milestones.push({ code: st.code || st.label, date: dateAt(w), set: set != null, late });
+          if (xOf(w) < trackW && w >= 0) track.append(h("span", {
+            class: "tl-ms" + (late ? " late" : "") + (set != null ? " set" : ""), style: `left:${xOf(w)}px;--c:${topicColor}`,
+            title: `${st.code || st.label} exam ${set != null ? "booked/planned for" : "≈"} ${fmtDay(dateAt(w))}${late ? "\nYour exam date is before the planned end of prep: add hours to this lane or move the date." : ""}` },
+            h("span", { class: "tl-ms-label", text: (late ? "⚠ " : "") + (st.code || "Exam") })));
+        }
+      });
+      if (hiddenLater) track.append(h("span", { class: "tl-later", text: `+${hiddenLater} later →` }));
+      box.append(h("div", { class: "tl-row", style: `--c:${topicColor}` }, label, track));
+    });
+
+    // summary line
+    const fmtMs = (x) => `${x.code} ${x.set ? "on" : "≈"} ${fmtMonth(x.date)}${x.late ? " ⚠" : ""}`;
+    const mscs = lanes.flatMap((l) => l.bars).find((b) => b.item.id === "rm-mscs-pathway");
+    $("plan-summary").textContent = [
+      `${totalPerWeek} h per week across ${lanes.length} parallel lanes`,
+      milestones.length ? "Exams: " + milestones.map(fmtMs).join(" · ") : null,
+      mscs && isFinite(mscs.start) ? `MS-CS pathway starts ≈ ${fmtMonth(dateAt(mscs.start))}` : null
+    ].filter(Boolean).join("  ·  ");
+    const ol = $("plan-principles"); ol.textContent = "";
+    (rm.principles || []).forEach((p) => ol.append(h("li", { text: p })));
+  }
+  document.querySelectorAll(".rng-btn").forEach((b) => b.addEventListener("click", () => { planMonths = +b.dataset.months; store.set("skillmap.planMonths", planMonths); renderPlan(); }));
+
   // ───────────────────────── light / dark theme ─────────────────────────
   function applyTheme(choice) {
     if (choice === "light" || choice === "dark") document.documentElement.dataset.theme = choice;
@@ -1734,7 +1897,7 @@
   })();
   buildGraph(); renderGraph(); settle(320); positionAll();
   refreshAll(); renderConceptPicker();
-  switchView(store.get(KEYS.tab, "log") === "graph" ? "graph" : "log");
+  switchView(["graph", "plan"].includes(store.get(KEYS.tab, "log")) ? store.get(KEYS.tab, "log") : "log");
   requestAnimationFrame(fit);
   window.addEventListener("resize", () => { clearTimeout(window.__fitT); window.__fitT = setTimeout(fit, 150); });
 })();

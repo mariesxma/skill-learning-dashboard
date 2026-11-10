@@ -25,6 +25,14 @@ Everything on My courses is one list with two ways to slice it:
 
 `starterPlan` in `data.js` adds a plan to My courses once as "Up next" (currently the CU Boulder MS-CS degree, TOGAF 10 and IAPP AIGP certifications, and official readings: NIST AI RMF, ISO/IEC 42001, EU AI Act, GDPR, NIST SP 1270, the TOGAF Standard). Change its `id` to add new items later.
 
+## Plan
+
+The **Plan** tab is a timeline with parallel lanes (AI engineering; AI governance → AIGP → TOGAF; CS foundations → MS-CS; consulting & communication):
+
+- Bars are scheduled from each lane's **hours per week** (− / +) and rough hour estimates, in dependency order; the plan re-flows when you change the hours or make progress on My courses.
+- In-progress items are partly filled; ◆ marks exams (at your exam date if you set one, with ⚠ if it falls before prep is done).
+- "Why this order" explains the sequencing. Lanes, estimates and principles live in `roadmap` in `data.js`.
+
 ## Certifications
 
 The **Certifications** section on My courses tracks exam paths such as TOGAF 10:
