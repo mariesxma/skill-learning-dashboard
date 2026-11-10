@@ -22,6 +22,8 @@ window.LEARNING_DATA = {
       summary: "How money, markets and companies work: valuing assets, managing risk, and building portfolios." },
     { id: "ea", name: "Enterprise Architecture", color: "#0369a1", anchor: [660, -600],
       summary: "Designing how an organization's business, data, applications and technology fit together, and planning how to get from today's state to the target. TOGAF is the most widely used framework." },
+    { id: "gov", name: "AI Governance & Privacy", color: "#dc2626", anchor: [660, 600],
+      summary: "Making AI trustworthy and lawful: risk frameworks (NIST AI RMF), management-system standards (ISO/IEC 42001), AI laws (EU AI Act and national rules), data protection (GDPR), and where privacy meets algorithmic bias and transparency." },
     { id: "consult", name: "Consulting & Communication", color: "#db2777", anchor: [-620, 560],
       summary: "The other half of a forward deployed engineer: breaking down messy client problems, communicating answers to executives, running discovery with stakeholders, and making the business case for AI." },
     { id: "aifin", name: "AI × Finance", color: "#e08a00", anchor: [0, 330],
@@ -48,10 +50,36 @@ window.LEARNING_DATA = {
     { id: "ea-framework", domain: "ea", name: "TOGAF & the ADM" },
     { id: "ea-domains", domain: "ea", name: "Architecture Domains (BDAT)" },
     { id: "ea-modeling", domain: "ea", name: "Modeling & Planning" },
-    { id: "ea-governance", domain: "ea", name: "Architecture Governance" }
+    { id: "ea-governance", domain: "ea", name: "Architecture Governance" },
+    { id: "gov-frameworks", domain: "gov", name: "Risk Frameworks & Standards" },
+    { id: "gov-law", domain: "gov", name: "AI Laws & Compliance" },
+    { id: "gov-privacy", domain: "gov", name: "Data Protection" },
+    { id: "gov-fairness", domain: "gov", name: "Bias, Fairness & Transparency" }
   ],
 
   concepts: [
+    // ── AI Governance · Risk Frameworks & Standards
+    { id: "nist-ai-rmf", topic: "gov-frameworks", label: "NIST AI RMF", definition: "The US National Institute of Standards and Technology's voluntary AI Risk Management Framework (1.0, January 2023), organized around four functions: Govern, Map, Measure and Manage.", related: ["ai-governance", "guardrails"] },
+    { id: "iso-42001", topic: "gov-frameworks", label: "ISO/IEC 42001 (AI management system)", definition: "The international standard (2023) for an AI management system: policies, objectives and processes for responsible AI, run with Plan-Do-Check-Act and certifiable like ISO 27001.", related: ["nist-ai-rmf", "arch-governance"] },
+    { id: "ai-risk-assessment", topic: "gov-frameworks", label: "AI risk & impact assessment", definition: "Systematically identifying what could go wrong with an AI system (harm to people, bias, security, misuse), how likely and severe it is, and which controls reduce it.", related: ["nist-ai-rmf", "evals"] },
+
+    // ── AI Governance · AI Laws & Compliance
+    { id: "eu-ai-act", topic: "gov-law", label: "EU AI Act", definition: "Regulation (EU) 2024/1689: a risk-based law that bans some AI practices, sets strict obligations for high-risk systems, and adds transparency duties for others, including general-purpose AI models.", related: ["ai-risk-assessment", "gdpr"] },
+    { id: "ai-conformity", topic: "gov-law", label: "Conformity, documentation & oversight", definition: "What high-risk AI must show: technical documentation, logging, human oversight, accuracy and robustness testing, and conformity assessment before going to market.", related: ["eu-ai-act", "llmops"] },
+    { id: "national-ai-laws", topic: "gov-law", label: "National AI laws & policies", definition: "AI rules beyond the EU, such as US state laws and sector guidance, China's rules on algorithms and generative AI, and other countries' frameworks. They differ in scope, so map which ones apply.", related: ["eu-ai-act"] },
+
+    // ── AI Governance · Data Protection
+    { id: "gdpr", topic: "gov-privacy", label: "GDPR", definition: "The EU General Data Protection Regulation (2016/679): rules for processing personal data, people's rights over their data, and accountability for organizations, with large fines for violations.", related: ["data-arch"] },
+    { id: "privacy-principles", topic: "gov-privacy", label: "Lawful basis & data minimization", definition: "Core data protection principles: have a lawful basis, use data only for stated purposes, collect no more than needed, keep it accurate and no longer than necessary, and secure it.", related: ["gdpr"] },
+    { id: "dpia", topic: "gov-privacy", label: "DPIA", definition: "Data Protection Impact Assessment: required before high-risk processing (common for AI) to describe the processing, assess risks to people, and plan mitigations.", related: ["gdpr", "ai-risk-assessment"] },
+    { id: "adm-rights", topic: "gov-privacy", label: "Automated decisions (GDPR Art. 22)", definition: "People's right not to be subject to solely automated decisions with legal or similarly significant effects, plus safeguards such as human review and meaningful information about the logic. This is where privacy law meets algorithmic fairness.", related: ["gdpr", "algorithmic-bias", "explainability", "credit-scoring"] },
+
+    // ── AI Governance · Bias, Fairness & Transparency
+    { id: "algorithmic-bias", topic: "gov-fairness", label: "Algorithmic bias", definition: "Systematic unfair outcomes from AI. NIST SP 1270 groups the sources into systemic, statistical/computational and human biases, so fixing the data alone is not enough.", related: ["classification", "credit-scoring", "fraud-detection"] },
+    { id: "fairness-metrics", topic: "gov-fairness", label: "Fairness metrics", definition: "Ways to measure whether outcomes differ across groups, e.g. demographic parity, equal opportunity and equalized odds. They can conflict, so the choice is a policy decision.", related: ["algorithmic-bias", "precision-recall", "evals"] },
+    { id: "explainability", topic: "gov-fairness", label: "Explainability (XAI)", definition: "Techniques and practices that make model decisions understandable to the people affected and to reviewers, e.g. feature attributions, reason codes and counterfactuals.", related: ["adm-rights", "neural-net"] },
+    { id: "transparency-docs", topic: "gov-fairness", label: "Transparency documentation", definition: "Model cards, datasheets and system cards that record what a model is for, how it was built and tested, and its known limits. Many AI laws now expect this.", related: ["ai-conformity", "evals"] },
+
     // ── Enterprise Architecture · TOGAF & the ADM
     { id: "togaf", topic: "ea-framework", label: "TOGAF Standard", definition: "The Open Group's framework for enterprise architecture: a method (the ADM), a content framework, and guidance for governing and evolving architecture across an organization." },
     { id: "adm", topic: "ea-framework", label: "Architecture Development Method (ADM)", definition: "TOGAF's core cycle: Preliminary, A Vision, B Business, C Information Systems, D Technology, E Opportunities & Solutions, F Migration Planning, G Implementation Governance, H Change Management, with Requirements Management at the center.", related: ["togaf"] },
@@ -215,9 +243,32 @@ window.LEARNING_DATA = {
     { id: "fin-llm", domain: "aifin", label: "LLMs for finance", definition: "Applying LLMs and RAG to research reports, filings and customer service, such as summarizing a 10-K or answering questions over it.", related: ["rag", "statements", "agents", "mcp"] }
   ],
 
+  // Your plan: added once to My courses as "Up next" (bump the id to add new items later).
+  starterPlan: {
+    id: "plan-2026-11",
+    certifications: ["togaf10", "aigp"],
+    planned: ["d-mscs", "r-nist-ai-rmf", "r-iso-42001", "r-eu-ai-act", "r-gdpr", "r-nist-1270", "c-togaf-standard"]
+  },
+
   // Certification paths you can add on the My courses page. Links point only to official sites;
   // your own study materials are recognized by the `match` keywords when you paste their links.
   certifications: [
+    { id: "aigp", name: "IAPP Artificial Intelligence Governance Professional", short: "AIGP", provider: "IAPP",
+      url: "https://iapp.org/certify/aigp/", category: "gov", match: ["aigp"],
+      exams: [
+        { id: "aigp-exam", code: "AIGP", name: "AIGP certification exam",
+          format: "100 multiple-choice questions (15 unscored) · 3 hours including an optional 15-minute break", url: "https://iapp.org/certify/aigp-candidate-handbook",
+          covers: ["ai-governance", "nist-ai-rmf", "iso-42001", "ai-risk-assessment", "eu-ai-act", "ai-conformity", "national-ai-laws", "gdpr", "privacy-principles", "dpia", "adm-rights", "algorithmic-bias", "fairness-metrics", "transparency-docs"],
+          steps: [
+            "Download the current AIGP Body of Knowledge and Exam Blueprint from iapp.org",
+            "Domain I: foundations of AI governance (AI basics, risks and harms, responsible AI principles)",
+            "Domain II: laws, standards and frameworks (EU AI Act, GDPR, NIST AI RMF, ISO/IEC 42001)",
+            "Domain III: governing AI development (risk assessment, data, testing, documentation)",
+            "Domain IV: governing AI deployment and use (monitoring, incidents, third-party AI)",
+            "Take timed practice exams until you are comfortably above the pass mark",
+            "Book the exam"
+          ] }
+      ] },
     { id: "togaf10", name: "TOGAF® Enterprise Architecture (10th Edition)", short: "TOGAF 10", provider: "The Open Group",
       url: "https://www.opengroup.org/togaf", category: "ea", match: ["togaf", "ogea"],
       exams: [
@@ -248,8 +299,24 @@ window.LEARNING_DATA = {
   ],
 
   courses: [
+    // Degree (type: "degree")
+    { id: "d-mscs", type: "degree", title: "Master of Science in Computer Science (CU Boulder, on Coursera)", provider: "University of Colorado Boulder / Coursera", url: "https://www.coursera.org/degrees/ms-computer-science-boulder", cost: "Tuition (see official page)", level: "Advanced",
+      covers: ["big-o", "sorting-searching", "trees-graphs", "recursion", "discrete-math", "os-processes", "networking", "databases", "system-design", "how-computers-work", "probability-stats", "linear-algebra"] },
+
+    // Reading: official standards, frameworks and laws (type: "reading")
+    { id: "r-nist-ai-rmf", type: "reading", title: "NIST AI Risk Management Framework (AI RMF 1.0)", provider: "NIST", url: "https://www.nist.gov/itl/ai-risk-management-framework", cost: "Free", level: "Intermediate",
+      covers: ["nist-ai-rmf", "ai-risk-assessment", "ai-governance"] },
+    { id: "r-iso-42001", type: "reading", title: "ISO/IEC 42001:2023 AI management system", provider: "ISO", url: "https://www.iso.org/standard/42001", cost: "Paid standard", level: "Intermediate",
+      covers: ["iso-42001", "ai-risk-assessment"] },
+    { id: "r-eu-ai-act", type: "reading", title: "EU AI Act: Regulation (EU) 2024/1689", provider: "EUR-Lex (European Union)", url: "https://eur-lex.europa.eu/eli/reg/2024/1689/oj", cost: "Free", level: "Intermediate",
+      covers: ["eu-ai-act", "ai-conformity", "transparency-docs"] },
+    { id: "r-gdpr", type: "reading", title: "GDPR: Regulation (EU) 2016/679", provider: "EUR-Lex (European Union)", url: "https://eur-lex.europa.eu/eli/reg/2016/679/oj", cost: "Free", level: "Intermediate",
+      covers: ["gdpr", "privacy-principles", "dpia", "adm-rights"] },
+    { id: "r-nist-1270", type: "reading", title: "NIST SP 1270: Towards a Standard for Identifying and Managing Bias in AI", provider: "NIST", url: "https://doi.org/10.6028/NIST.SP.1270", cost: "Free", level: "Intermediate",
+      covers: ["algorithmic-bias", "fairness-metrics", "explainability"] },
+
     // Enterprise Architecture (official source only; add your own study materials on My courses)
-    { id: "c-togaf-standard", title: "The TOGAF Standard, 10th Edition (official)", provider: "The Open Group", url: "https://www.opengroup.org/togaf", cost: "Free to read (registration)", level: "Intermediate",
+    { id: "c-togaf-standard", type: "reading", title: "The TOGAF Standard, 10th Edition (official)", provider: "The Open Group", url: "https://www.opengroup.org/togaf", cost: "Free to read (registration)", level: "Intermediate",
       covers: ["togaf", "adm", "arch-content", "enterprise-continuum", "arch-repository", "business-arch", "data-arch", "application-arch", "technology-arch", "migration-planning", "arch-principles", "arch-governance", "ea-stakeholders", "capability-mapping"] },
 
     // Consulting & Communication

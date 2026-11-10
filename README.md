@@ -16,6 +16,15 @@ The **My courses** tab is the home page:
 - **Up next** and **Completed** lists, with Start, Edit, Reopen and Remove.
 - **Add or edit with all details** (collapsed) holds the full form: project vs. course, skills, curriculum sync, dates and notes.
 
+## Types and topics
+
+Everything on My courses is one list with two ways to slice it:
+
+- **Type** (Group by → Type): 🎓 Degrees · 🏅 Certifications · 📘 Courses · 📄 Reading (standards, laws, papers, books) · 🛠 Projects. The type is detected when you paste a link (e.g. `/degrees/` → Degree; iso.org, nist.gov, eur-lex → Reading) and can be changed on the card.
+- **Topic** (the chips and Group by → Topic): AI, AI Governance & Privacy, Enterprise Architecture, CS Foundations, Consulting, … The topic color is the stripe on every card.
+
+`starterPlan` in `data.js` adds a plan to My courses once as "Up next" (currently the CU Boulder MS-CS degree, TOGAF 10 and IAPP AIGP certifications, and official readings: NIST AI RMF, ISO/IEC 42001, EU AI Act, GDPR, NIST SP 1270, the TOGAF Standard). Change its `id` to add new items later.
+
 ## Certifications
 
 The **Certifications** section on My courses tracks exam paths such as TOGAF 10:
