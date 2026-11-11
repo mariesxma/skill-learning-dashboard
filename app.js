@@ -1781,7 +1781,7 @@
       ["main", "support", "habit"].forEach((role) => {
         let cur = start;
         steps.filter((x) => x.role === role).forEach((x) => {
-          if (x.s.ongoing) { bars.push({ ...x, start, end: null }); return; }
+          if (x.s.ongoing) { bars.push({ ...x, start: cur, end: null }); return; }
           const d = rem[role] ? span[role] * (x.remaining / rem[role]) : 0;
           bars.push({ ...x, start: cur, end: cur + d });
           cur += d;
