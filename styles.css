@@ -528,3 +528,68 @@ body[data-view="plan"] .theme-toggle { margin-left: auto; }
   .timeline-scroll { --label-w: 150px; }
   .tl-label { padding: 10px; }
 }
+
+/* ── Study plan: swimlanes + checklist ── */
+.plan-ctrls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.budget { display: flex; align-items: center; gap: 6px; background: var(--surface-2); padding: 4px 8px; border-radius: 10px; flex-wrap: wrap; }
+.budget .btn.small { width: 28px; padding: 2px 0; text-align: center; box-shadow: none; }
+.budget-val { font-weight: 800; font-variant-numeric: tabular-nums; min-width: 34px; text-align: center; }
+#budget-split { font-size: 11px; color: var(--muted); }
+.tl-head .tl-track { height: 64px; }
+.tl-phase { position: absolute; top: 6px; height: 24px; display: flex; align-items: center; gap: 4px; padding: 0 8px; font-size: 12px; white-space: nowrap; overflow: hidden;
+  border-left: 2px solid var(--accent); color: var(--text); }
+.tl-phase b { color: var(--accent); }
+.tl-phase span { overflow: hidden; text-overflow: ellipsis; }
+.tl-head .tl-month { top: 38px; }
+.tl-band { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--accent) 4%, transparent); border-left: 1px dashed color-mix(in srgb, var(--accent) 40%, transparent); }
+.tl-band.alt { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+button.tl-bar { font: inherit; cursor: pointer; text-align: left; height: 32px; gap: 6px; }
+.tl-bar.role-main { background: color-mix(in srgb, var(--c) 32%, var(--surface)); border: 1px solid var(--c); font-weight: 700; }
+.tl-bar.role-support { background: color-mix(in srgb, var(--c) 14%, var(--surface)); border: 1px solid color-mix(in srgb, var(--c) 55%, transparent); }
+.tl-bar.role-habit { background: transparent; border: 1px dashed color-mix(in srgb, var(--c) 70%, transparent); font-weight: 500; }
+.tl-bar.prog.role-main { background: linear-gradient(90deg, color-mix(in srgb, var(--c) 65%, var(--surface)) var(--p), color-mix(in srgb, var(--c) 32%, var(--surface)) var(--p)); }
+.tl-bar.prog.role-support, .tl-bar.prog.role-habit { background: linear-gradient(90deg, color-mix(in srgb, var(--c) 40%, var(--surface)) var(--p), color-mix(in srgb, var(--c) 10%, var(--surface)) var(--p)); }
+.tl-bar.open { border-right: 0; border-radius: 8px 0 0 8px; background: linear-gradient(90deg, color-mix(in srgb, var(--c) 16%, var(--surface)) 40%, transparent); }
+.tl-num { flex-shrink: 0; font-size: 10px; font-weight: 800; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 99px; display: inline-grid; place-items: center;
+  background: var(--c); color: #fff; }
+.pl-main { background: color-mix(in srgb, var(--accent) 32%, var(--surface)); border: 1px solid var(--accent); }
+.pl-support { background: color-mix(in srgb, var(--accent) 14%, var(--surface)); border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent); }
+.pl-habit { border: 1px dashed var(--accent); }
+
+.checklist { display: grid; gap: 16px; }
+.phase-card { display: grid; gap: 8px; }
+.phase-card.current { border: 2px solid var(--accent); }
+.phase-card.complete { opacity: .75; }
+.phase-head { display: flex; justify-content: space-between; gap: 12px; align-items: start; flex-wrap: wrap; }
+.phase-head h2 { font-size: 18px; }
+.phase-head .meta { color: var(--muted); margin: 2px 0 0; font-size: 12px; }
+.phase-num { color: var(--accent); }
+.phase-prog { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; }
+.phase-why { margin: 0; color: var(--muted); font-size: 13px; }
+.steps { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 8px; }
+.step-item { display: grid; grid-template-columns: auto 1fr; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-left: 4px solid var(--c); border-radius: 10px; transition: background .3s; }
+.step-item.next { background: color-mix(in srgb, var(--accent) 7%, var(--surface)); border-color: color-mix(in srgb, var(--accent) 50%, var(--border)); border-left-color: var(--c); }
+.step-item.done .step-title a, .step-item.done .step-title > span:not(.step-num) { color: var(--muted); text-decoration: line-through; }
+.step-item.done .step-why, .step-item.done .step-how { display: none; }
+.step-item.flash { background: color-mix(in srgb, var(--accent) 22%, var(--surface)); }
+.step-check input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--accent); cursor: pointer; }
+.step-body { display: grid; gap: 4px; min-width: 0; }
+.step-title { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; font-weight: 700; font-size: 14px; }
+.step-title a { text-decoration: none; }
+.step-num { flex-shrink: 0; font-size: 11px; font-weight: 800; min-width: 20px; height: 20px; border-radius: 99px; display: inline-grid; place-items: center; background: var(--c); color: #fff; }
+.next-badge { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; background: var(--accent); color: #fff; border-radius: 4px; padding: 1px 6px; }
+.role-pill { font-size: 11px; font-weight: 700; border-radius: 99px; padding: 1px 8px; border: 1px solid var(--border); }
+.role-pill.role-main { background: var(--accent); border-color: var(--accent); color: #fff; }
+.role-pill.role-support { color: var(--accent); border-color: var(--accent); }
+.role-pill.role-habit { color: var(--muted); border-style: dashed; }
+.step-why, .step-how { margin: 0; font-size: 13px; }
+.step-why b, .step-how b { color: var(--muted); font-weight: 700; }
+.step-pct { color: var(--accent) !important; font-weight: 700; }
+.methods { display: grid; gap: 8px; margin-top: 10px; }
+.method { display: grid; grid-template-columns: 200px 150px 1fr; gap: 10px; font-size: 13px; padding: 6px 0; border-top: 1px solid var(--border); }
+.method:first-child { border-top: 0; }
+.method-strength { color: var(--accent); font-weight: 700; }
+@media (max-width: 760px) {
+  .method { grid-template-columns: 1fr; gap: 2px; }
+  .plan-ctrls { width: 100%; }
+}

@@ -8,7 +8,7 @@
     // Apply the saved theme before the page paints, so there is no flash of the wrong colors.
     try { var t = JSON.parse(localStorage.getItem("skillmap.theme")); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=15" />
+  <link rel="stylesheet" href="styles.css?v=16" />
 </head>
 <body>
   <header class="topbar">
@@ -34,29 +34,43 @@
     <section class="plan-wrap">
       <div class="card plan-head">
         <div>
-          <h2>Learning plan</h2>
+          <h2>Study plan</h2>
           <p class="meta" id="plan-summary"></p>
         </div>
-        <div class="layout-toggle" role="group" aria-label="Time range">
-          <span class="lt-label">Show</span>
-          <button type="button" class="rng-btn" data-months="12">12 mo</button>
-          <button type="button" class="rng-btn" data-months="18">18 mo</button>
-          <button type="button" class="rng-btn" data-months="24">24 mo</button>
+        <div class="plan-ctrls">
+          <div class="budget" role="group" aria-label="Hours per week">
+            <span class="lt-label">Hours / week</span>
+            <button type="button" class="btn small" id="budget-minus" aria-label="Fewer hours per week">−</button>
+            <span id="budget-val" class="budget-val"></span>
+            <button type="button" class="btn small" id="budget-plus" aria-label="More hours per week">+</button>
+            <span class="meta" id="budget-split"></span>
+          </div>
+          <div class="layout-toggle" role="group" aria-label="Time range">
+            <span class="lt-label">Show</span>
+            <button type="button" class="rng-btn" data-months="12">12 mo</button>
+            <button type="button" class="rng-btn" data-months="18">18 mo</button>
+            <button type="button" class="rng-btn" data-months="24">24 mo</button>
+          </div>
         </div>
       </div>
+
       <div class="card plan-card">
-        <div id="timeline" class="timeline-scroll" aria-label="Timeline with parallel learning lanes"></div>
+        <div id="timeline" class="timeline-scroll" aria-label="Swimlane timeline of the study plan"></div>
         <div class="plan-legend">
-          <span><i class="pl pl-bar"></i>Planned</span>
-          <span><i class="pl pl-prog"></i>In progress (filled part = done)</span>
-          <span><i class="pl pl-ms">◆</i>Exam</span>
+          <span><i class="pl pl-main"></i>Main track (~60%)</span>
+          <span><i class="pl pl-support"></i>Support (~25%)</span>
+          <span><i class="pl pl-habit"></i>Habit (~15%)</span>
           <span><i class="pl pl-open"></i>Ongoing</span>
-          <span class="meta">Hours are rough estimates. Change each lane's hours per week to fit your life; the plan re-flows.</span>
+          <span><i class="pl pl-ms">◆</i>Exam</span>
+          <span class="meta">Hours are rough estimates; the plan re-flows as you tick steps and change hours.</span>
         </div>
       </div>
-      <details class="card plan-why" open>
-        <summary><h2>Why this order</h2></summary>
-        <ol id="plan-principles"></ol>
+
+      <div id="checklist" class="checklist" aria-label="Step-by-step checklist"></div>
+
+      <details class="card plan-why">
+        <summary><h2>Why these study methods</h2></summary>
+        <div id="plan-methods" class="methods"></div>
       </details>
     </section>
   </main>
@@ -226,7 +240,7 @@
     </section>
   </main>
 
-  <script src="data.js?v=15"></script>
-  <script src="app.js?v=15"></script>
+  <script src="data.js?v=16"></script>
+  <script src="app.js?v=16"></script>
 </body>
 </html>
