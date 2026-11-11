@@ -291,9 +291,9 @@ window.LEARNING_DATA = {
         title: "Consulting Presentations and Storytelling (Emory)",
         why: "Short; it teaches the pyramid structure you will use for every memo from now on.",
         how: "Re-write one slide or email from your own work with an action title after each module." },
-      { id: "s-genai", phase: "p1", role: "habit", lane: "gov", ref: "c-genai-everyone", hours: 6,
+      { id: "s-genai", phase: "p1", role: "habit", lane: "ai", ref: "c-genai-everyone", hours: 6,
         title: "Generative AI for Everyone",
-        why: "A light, business-level primer that gives Phase 2 (AIGP) its context.",
+        why: "General AI literacy from a business angle: how generative AI works, what it can and can't do, and how projects run. Light enough to sit next to the FDE course.",
         how: "Watch at normal speed; for each lesson write one card: 'what would I tell a client about this?'" },
 
       // ── Phase 2
@@ -466,8 +466,8 @@ window.LEARNING_DATA = {
       covers: ["pyramid-principle", "storyline", "data-storytelling", "slide-design", "exec-presence"] },
     { id: "c-emory-problem", title: "Consulting Approach to Problem Solving", provider: "Coursera / Emory University", url: "https://www.coursera.org/learn/consulting-problem-solving", cost: "Subscription (7-day trial / financial aid)", level: "Beginner",
       covers: ["mece", "issue-tree", "hypothesis-driven", "prioritization"] },
-    { id: "c-genai-everyone", title: "Generative AI for Everyone", provider: "DeepLearning.AI / Coursera", url: "https://www.coursera.org/learn/generative-ai-for-everyone", cost: "Free", level: "Beginner",
-      covers: ["use-case-prioritization", "business-case", "ai-governance", "prompting"] },
+    { id: "c-genai-everyone", domain: "ai", title: "Generative AI for Everyone", provider: "DeepLearning.AI / Coursera", url: "https://www.coursera.org/learn/generative-ai-for-everyone", cost: "Free", level: "Beginner",
+      covers: ["prompting", "transformer", "use-case-prioritization", "business-case"] },
     { id: "c-minto", title: "The Pyramid Principle (Barbara Minto: book & course)", provider: "barbaraminto.com", url: "https://barbaraminto.com/course", cost: "Book is cheap; course is paid", level: "Intermediate",
       covers: ["pyramid-principle", "storyline", "mece"] },
 
