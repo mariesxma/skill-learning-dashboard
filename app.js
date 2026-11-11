@@ -1681,166 +1681,290 @@
     ev.target.value = "";
   });
 
-  // ───────────────────────── Plan: parallel lanes on a timeline ─────────────────────────
-  let laneHours = store.get("skillmap.laneHours", {}) || {};
-  let planMonths = store.get("skillmap.planMonths", 18);
+  // ───────────────────────── Plan: phased study plan (swimlanes + checklist) ─────────────────────────
+  const PL = D.plan;
+  let planBudget = store.get("skillmap.planBudget", PL ? PL.budget : 12);
+  let planMonths = store.get("skillmap.planMonths", 12);
+  let planChecks = store.get("skillmap.planChecks", {}) || {};
   const WEEK_MS = 7 * 86400000;
+  const ROLE_LABEL = { main: "Main", support: "Support", habit: "Habit" };
   const fmtMonth = (d) => d.toLocaleDateString("en-US", { month: "short", year: "numeric" });
-  const fmtDay = (d) => d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const fmtDay = (d) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const savePlan = () => { store.set("skillmap.planBudget", planBudget); store.set("skillmap.planMonths", planMonths); store.set("skillmap.planChecks", planChecks); };
 
-  // What is the current state of a plan item? Reads courses, your own entries and certifications.
-  function resolvePlanItem(item) {
-    const out = { label: item.label, url: "", status: "planned", pct: 0, examDate: "", kind: item.kind || "" };
-    let course = null;
-    if (item.ref) course = allCourses().find((c) => c.id === item.ref);
-    if (!course && item.match) course = allCourses().find((c) => c.mine && `${c.title} ${c.url}`.toLowerCase().includes(item.match));
-    if (course) {
-      Object.assign(out, { label: item.label || course.title, url: course.url, status: course.status === "none" ? "planned" : course.status, pct: coursePct(course) });
-    }
-    if (item.refs) {
-      // several short items shown as one bar (e.g. a set of readings)
-      const list = item.refs.map((id) => allCourses().find((c) => c.id === id)).filter(Boolean);
-      const pcts = list.map((c) => (c.status === "completed" ? 100 : coursePct(c)));
-      out.pct = list.length ? Math.round(pcts.reduce((a, b) => a + b, 0) / list.length) : 0;
-      out.status = list.length && list.every((c) => c.status === "completed") ? "completed" : list.some((c) => c.status === "in-progress" || c.status === "completed") ? "in-progress" : "planned";
-      out.details = list.map((c) => `${c.status === "completed" ? "✓" : c.status === "in-progress" ? "▸" : "·"} ${c.title}`);
-    }
-    if (item.cert) {
-      const t = (D.certifications || []).find((x) => x.id === item.cert);
-      const mine = certs.find((c) => c.templateId === item.cert);
-      const ex = mine && mine.exams.find((e) => e.id === item.exam);
-      const tex = t && t.exams.find((e) => e.id === item.exam);
-      out.url = (tex && tex.url) || (t && t.url) || "";
-      out.code = (tex && tex.code) || "";
+  function ensureCert(templateId) {
+    let c = certs.find((x) => x.templateId === templateId);
+    if (!c) { addCertFromTemplate(templateId); c = certs.find((x) => x.templateId === templateId); }
+    return c;
+  }
+  // Where a step's progress lives: a course (optionally some of its weeks), your own course, an exam, or the checklist itself
+  function stepLink(step) {
+    const out = { kind: "own", url: step.url || "", title: step.title, done: !!planChecks[step.id], pct: planChecks[step.id] ? 100 : 0, examDate: "" };
+    if (step.ref) {
+      const c = allCourses().find((x) => x.id === step.ref);
+      if (c) {
+        out.kind = "course"; out.course = c; out.url = out.url || c.url;
+        if (step.modules) {
+          const ms = (c.modules || []).filter((m) => step.modules.includes(m.id));
+          const d = ms.filter((m) => m.done).length;
+          out.done = c.status === "completed" || (ms.length > 0 && d === ms.length);
+          out.pct = out.done ? 100 : ms.length ? Math.round((d / ms.length) * 100) : 0;
+        } else {
+          out.done = c.status === "completed";
+          out.pct = out.done ? 100 : coursePct(c);
+        }
+        if (step.ongoing) { out.done = false; }
+        out.started = c.status === "in-progress";
+      }
+    } else if (step.match) {
+      const c = allCourses().find((x) => x.mine && `${x.title} ${x.url}`.toLowerCase().includes(step.match));
+      if (c) { out.kind = "course"; out.course = c; out.url = c.url; out.done = c.status === "completed"; out.pct = out.done ? 100 : coursePct(c); out.started = c.status === "in-progress"; }
+    } else if (step.cert) {
+      const t = (D.certifications || []).find((x) => x.id === step.cert);
+      const te = t && t.exams.find((e) => e.id === step.exam);
+      out.kind = "exam"; out.url = out.url || (te && te.url) || (t && t.url) || ""; out.code = (te && te.code) || "";
+      const c = certs.find((x) => x.templateId === step.cert);
+      const ex = c && c.exams.find((e) => e.id === step.exam);
       if (ex) {
-        const steps = ex.steps.length ? ex.steps.filter((x) => x.done).length / ex.steps.length : 0;
-        out.status = ex.status === "passed" ? "completed" : ex.status === "todo" && !steps ? "planned" : "in-progress";
-        out.pct = ex.status === "passed" ? 100 : Math.round(steps * 100);
-        out.examDate = ex.date || "";
+        out.done = ex.status === "passed";
+        const sd = ex.steps.length ? ex.steps.filter((x) => x.done).length / ex.steps.length : 0;
+        out.pct = out.done ? 100 : Math.round(sd * 100);
+        out.examDate = ex.date || ""; out.started = ex.status !== "todo";
       }
     }
-    // the degree is split into pathway + degree courses; only the first is "in progress"
-    if (item.id === "rm-mscs" && out.status === "in-progress") out.status = "planned";
     return out;
   }
-
-  function schedulePlan() {
-    const rm = D.roadmap; if (!rm) return { lanes: [], ends: {} };
-    const ends = {};
-    const lanes = rm.lanes.map((lane) => {
-      const perWeek = Math.max(0, Number(laneHours[lane.id] ?? lane.hoursPerWeek) || 0);
-      let cursor = 0; const done = [], bars = [];
-      lane.items.forEach((item) => {
-        const st = resolvePlanItem(item);
-        const remaining = st.status === "completed" ? 0 : item.hours * (1 - st.pct / 100);
-        const depEnd = Math.max(0, ...(item.after || []).map((a) => ends[a] ?? 0));
-        const start = Math.max(cursor, depEnd);
-        const weeks = remaining === 0 ? 0 : perWeek > 0 ? remaining / perWeek : Infinity;
-        const end = start + weeks;
-        ends[item.id] = end;
-        if (st.status === "completed") { done.push({ item, st }); return; }
-        bars.push({ item, st, start, end, weeks, remaining });
-        cursor = item.open ? cursor : end;
-      });
-      return { lane, perWeek, done, bars, topicColor: (catById(lane.topic) || catById("other")).color };
-    });
-    return { lanes, ends };
+  function setStepDone(step, done) {
+    const L = stepLink(step);
+    if (L.kind === "course" && step.modules) {
+      step.modules.forEach((m) => { const k = moduleKey(step.ref, m); if (done) courseStatus[k] = "completed"; else delete courseStatus[k]; });
+      const c = D.courses.find((x) => x.id === step.ref);
+      const all = c.modules.every((m) => courseStatus[moduleKey(c.id, m.id)] === "completed");
+      courseStatus[c.id] = all ? "completed" : c.modules.some((m) => courseStatus[moduleKey(c.id, m.id)] === "completed") ? "in-progress" : (courseStatus[c.id] === "completed" ? "in-progress" : courseStatus[c.id]);
+      if (!courseStatus[c.id]) delete courseStatus[c.id];
+      save(); refreshAll();
+    } else if (L.kind === "course") {
+      setCourseStatus(L.course, done ? "completed" : "in-progress");
+    } else if (L.kind === "exam") {
+      const c = ensureCert(step.cert); const ex = c && c.exams.find((e) => e.id === step.exam);
+      if (ex) { ex.status = done ? "passed" : "preparing"; if (done && !ex.date) ex.date = today(); save(); refreshAll(); }
+    } else {
+      if (done) planChecks[step.id] = today(); else delete planChecks[step.id];
+      savePlan(); renderPlan(); renderLog();
+    }
   }
 
-  function renderPlan() {
-    const rm = D.roadmap; const box = $("timeline"); if (!rm || !box) return;
-    document.querySelectorAll(".rng-btn").forEach((b) => b.classList.toggle("on", +b.dataset.months === planMonths));
-    const { lanes } = schedulePlan();
-    const t0 = new Date(today() + "T00:00:00");
-    const weeksShown = planMonths * 4.345;
-    const W = Math.max(14, Math.min(28, Math.round(1100 / weeksShown)));   // px per week
-    const trackW = Math.ceil(weeksShown * W);
-    const dateAt = (w) => new Date(t0.getTime() + w * WEEK_MS);
-    const xOf = (w) => Math.round(w * W);
+  // Schedule: phases run one after another; inside a phase each role (main/support/habit) runs its steps in order at its share of the weekly hours.
+  function schedulePlanSteps() {
+    const H = Math.max(1, planBudget), rate = { main: H * PL.split.main, support: H * PL.split.support, habit: H * PL.split.habit };
+    let t = 0; const bars = [], phases = [];
+    PL.phases.forEach((ph) => {
+      const start = t;
+      const steps = PL.steps.filter((s) => s.phase === ph.id).map((s) => {
+        const L = stepLink(s);
+        return { s, L, role: s.role, remaining: s.ongoing || L.done ? 0 : s.hours * (1 - L.pct / 100) };
+      });
+      const rem = { main: 0, support: 0, habit: 0 };
+      steps.forEach((x) => { if (!x.s.ongoing) rem[x.role] += x.remaining; });
+      // weeks each role needs; when main or support finishes first, its hours go to the other one
+      const m = rate.main, sp = rate.support;
+      let tm = 0, ts = 0;
+      if (rem.main && rem.support) {
+        tm = rem.main / m; ts = rem.support / sp;
+        if (tm < ts) ts = tm + (rem.support - sp * tm) / (m + sp);
+        else if (ts < tm) tm = ts + (rem.main - m * ts) / (m + sp);
+      } else if (rem.main) tm = rem.main / (m + sp);
+      else if (rem.support) ts = rem.support / (m + sp);
+      const th = rem.habit / rate.habit;
+      const span = { main: tm, support: ts, habit: th };
+      // lay out each role's steps in order, proportionally to their remaining hours
+      ["main", "support", "habit"].forEach((role) => {
+        let cur = start;
+        steps.filter((x) => x.role === role).forEach((x) => {
+          if (x.s.ongoing) { bars.push({ ...x, start, end: null }); return; }
+          const d = rem[role] ? span[role] * (x.remaining / rem[role]) : 0;
+          bars.push({ ...x, start: cur, end: cur + d });
+          cur += d;
+        });
+      });
+      const end = start + Math.max(tm, ts, th);
+      phases.push({ ph, start, end });
+      t = end;
+    });
+    // keep bars in plan order for numbering and packing
+    const idx = (id) => PL.steps.findIndex((s) => s.id === id);
+    bars.sort((a, b) => idx(a.s.id) - idx(b.s.id));
+    return { bars, phases, total: t };
+  }
 
-    box.textContent = "";
+  function compactNums(ns) {
+    const out = []; let i = 0;
+    while (i < ns.length) { let j = i; while (j + 1 < ns.length && ns[j + 1] === ns[j] + 1) j++; out.push(j > i ? `${ns[i]}–${ns[j]}` : String(ns[i])); i = j + 1; }
+    return out.join(", ");
+  }
+  function renderPlan() {
+    if (!PL || !$("timeline")) return;
+    const { bars, phases } = schedulePlanSteps();
+    const t0 = new Date(today() + "T00:00:00");
+    const dateAt = (w) => new Date(t0.getTime() + w * WEEK_MS);
+    // controls
+    document.querySelectorAll(".rng-btn").forEach((b) => b.classList.toggle("on", +b.dataset.months === planMonths));
+    $("budget-val").textContent = `${planBudget} h`;
+    const r = (k) => (planBudget * PL.split[k]).toFixed(1).replace(/\.0$/, "");
+    $("budget-split").textContent = `main ${r("main")} · support ${r("support")} · habit ${r("habit")} h`;
+
+    // ── swimlanes
+    const box = $("timeline"); box.textContent = "";
+    const weeksShown = planMonths * 4.345;
+    const W = Math.max(14, Math.min(28, Math.round(1150 / weeksShown)));
+    const trackW = Math.ceil(weeksShown * W);
+    const xOf = (w) => Math.round(w * W);
     box.style.setProperty("--track-w", trackW + "px");
-    // header: months
-    const head = h("div", { class: "tl-row tl-head" }, h("div", { class: "tl-label" }, h("span", { class: "meta", text: "Lane · hours per week" })));
-    const months = h("div", { class: "tl-track tl-months" });
-    const m = new Date(t0.getFullYear(), t0.getMonth() + 1, 1);
+
+    const head = h("div", { class: "tl-row tl-head" }, h("div", { class: "tl-label" }, h("span", { class: "meta", text: "Phases & months" })));
+    const headTrack = h("div", { class: "tl-track tl-months" });
+    phases.forEach((p, i) => {
+      if (p.end <= p.start || xOf(p.start) >= trackW) return;
+      const w = Math.min(xOf(p.end), trackW) - xOf(p.start);
+      headTrack.append(h("div", { class: "tl-phase", style: `left:${xOf(p.start)}px;width:${w}px`, title: `${p.ph.title}\n${fmtDay(dateAt(p.start))} → ${fmtDay(dateAt(p.end))}` },
+        h("b", { text: `Phase ${i + 1}` }), h("span", { text: " " + p.ph.title })));
+    });
     const firstGap = (new Date(t0.getFullYear(), t0.getMonth() + 1, 1) - t0) / WEEK_MS * W;
-    months.append(h("span", { class: "tl-month first", style: "left:0", text: firstGap > 70 ? fmtMonth(t0) : firstGap > 34 ? t0.toLocaleDateString("en-US", { month: "short" }) : "" }));
+    headTrack.append(h("span", { class: "tl-month first", style: "left:0", text: firstGap > 70 ? fmtMonth(t0) : firstGap > 34 ? t0.toLocaleDateString("en-US", { month: "short" }) : "" }));
+    const m = new Date(t0.getFullYear(), t0.getMonth() + 1, 1);
     while ((m - t0) / WEEK_MS < weeksShown) {
       const w = (m - t0) / WEEK_MS;
-      months.append(h("span", { class: "tl-month" + (m.getMonth() === 0 ? " year" : ""), style: `left:${xOf(w)}px`, text: m.getMonth() === 0 ? String(m.getFullYear()) : m.toLocaleDateString("en-US", { month: "short" }) }));
+      headTrack.append(h("span", { class: "tl-month" + (m.getMonth() === 0 ? " year" : ""), style: `left:${xOf(w)}px`, text: m.getMonth() === 0 ? String(m.getFullYear()) : m.toLocaleDateString("en-US", { month: "short" }) }));
       m.setMonth(m.getMonth() + 1);
     }
-    head.append(months); box.append(head);
+    head.append(headTrack); box.append(head);
 
-    const gridLines = () => {
+    const grid = () => {
       const g = h("div", { class: "tl-grid" });
-      const mm = new Date(t0.getFullYear(), t0.getMonth() + 1, 1);
-      while ((mm - t0) / WEEK_MS < weeksShown) { g.append(h("span", { class: "tl-gl" + (mm.getMonth() === 0 ? " year" : ""), style: `left:${xOf((mm - t0) / WEEK_MS)}px` })); mm.setMonth(mm.getMonth() + 1); }
-      g.append(h("span", { class: "tl-today", style: "left:0" }));
+      phases.forEach((p, i) => { if (p.end > p.start && xOf(p.start) < trackW) g.append(h("span", { class: "tl-band" + (i % 2 ? " alt" : ""), style: `left:${xOf(p.start)}px;width:${Math.min(xOf(p.end), trackW) - xOf(p.start)}px` })); });
+      g.append(h("span", { class: "tl-today", style: "left:0", title: "Today" }));
       return g;
     };
-
-    const milestones = [];
-    let totalPerWeek = 0;
-    lanes.forEach(({ lane, perWeek, done, bars, topicColor }) => {
-      totalPerWeek += perWeek;
-      const setHours = (v) => { laneHours[lane.id] = Math.max(0, Math.min(40, v)); store.set("skillmap.laneHours", laneHours); renderPlan(); };
-      const finite = bars.filter((b) => isFinite(b.end) && !b.item.open);
-      const finish = finite.length ? dateAt(Math.max(...finite.map((b) => b.end))) : null;
-      const label = h("div", { class: "tl-label", style: `--c:${topicColor}` },
-        h("div", { class: "tl-lane-name", text: lane.name }),
-        h("div", { class: "meta", text: lane.note || "" }),
-        h("div", { class: "tl-hours" },
-          h("button", { class: "btn small", "aria-label": `Fewer hours for ${lane.name}`, text: "−", onclick: () => setHours(perWeek - 1) }),
-          h("span", { class: "tl-h", text: `${perWeek} h/wk` }),
-          h("button", { class: "btn small", "aria-label": `More hours for ${lane.name}`, text: "+", onclick: () => setHours(perWeek + 1) })),
-        h("div", { class: "meta tl-finish", text: perWeek === 0 ? "Paused" : finish ? `Done ≈ ${fmtMonth(finish)}` : "" }),
-        done.length ? h("div", { class: "tl-done", title: done.map((d) => "✓ " + (d.st.label || d.item.label)).join("\n"), text: `✓ ${done.length} done` }) : null);
-      const track = h("div", { class: "tl-track" }, gridLines());
-      let hiddenLater = 0;
-      bars.forEach((b) => {
-        const st = b.st, inProg = st.status === "in-progress";
-        const left = xOf(b.start);
-        if (left >= trackW) { hiddenLater++; return; }
-        const rawW = isFinite(b.end) ? xOf(b.end) - left : trackW - left;
-        const width = b.item.open ? trackW - left : Math.max(8, Math.min(rawW, trackW - left));
-        const cut = !b.item.open && left + rawW > trackW;
-        const when = isFinite(b.end) ? `${fmtDay(dateAt(b.start))} → ${fmtDay(dateAt(b.end))}` : "paused (0 h/wk)";
-        const tip = `${st.label}\n${STATUS_LABEL[st.status] || st.status}${inProg ? ` · ${st.pct}% done` : ""}\n≈ ${Math.round(b.remaining)} h left · ${b.item.open ? "ongoing" : when}${st.details ? "\n\n" + st.details.join("\n") : ""}${st.url ? "\nClick to open" : ""}`;
-        const bar = h(st.url ? "a" : "div", {
-          class: "tl-bar" + (inProg ? " prog" : "") + (b.item.open ? " open" : "") + (cut ? " cut" : "") + (b.item.kind === "project" ? " project" : ""),
-          style: `left:${left}px;width:${width}px;--c:${topicColor};--p:${inProg ? st.pct : 0}%`, title: tip,
-          href: st.url ? safeUrl(st.url) : null, target: st.url ? "_blank" : null, rel: st.url ? "noopener noreferrer" : null },
-          h("span", { class: "tl-bar-text", text: (b.item.kind === "project" ? "🛠 " : "") + st.label }));
-        track.append(bar);
-        if (b.item.cert && isFinite(b.end)) {
-          const set = st.examDate ? (new Date(st.examDate + "T00:00:00") - t0) / WEEK_MS : null;
-          const w = set != null ? set : b.end;
-          const late = set != null && set < b.end;
-          milestones.push({ code: st.code || st.label, date: dateAt(w), set: set != null, late });
-          if (xOf(w) < trackW && w >= 0) track.append(h("span", {
-            class: "tl-ms" + (late ? " late" : "") + (set != null ? " set" : ""), style: `left:${xOf(w)}px;--c:${topicColor}`,
-            title: `${st.code || st.label} exam ${set != null ? "booked/planned for" : "≈"} ${fmtDay(dateAt(w))}${late ? "\nYour exam date is before the planned end of prep: add hours to this lane or move the date." : ""}` },
-            h("span", { class: "tl-ms-label", text: (late ? "⚠ " : "") + (st.code || "Exam") })));
-        }
+    const order = PL.steps.map((s) => s.id);
+    const num = (id) => order.indexOf(id) + 1;
+    PL.lanes.forEach((lane) => {
+      const color = (catById(lane.topic) || catById("other")).color;
+      const raw = bars.filter((b) => b.s.lane === lane.id && !b.L.done && (b.end == null || b.end > b.start));
+      // merge steps of the same phase + role into one bar so short steps stay readable
+      const groups = new Map();
+      raw.forEach((b) => {
+        const key = b.end == null ? "open:" + b.s.id : `${b.s.phase}|${b.role}`;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(b);
       });
-      if (hiddenLater) track.append(h("span", { class: "tl-later", text: `+${hiddenLater} later →` }));
-      box.append(h("div", { class: "tl-row", style: `--c:${topicColor}` }, label, track));
+      const laneBars = [...groups.values()].map((g) => {
+        if (g.length === 1) return { ...g[0], members: g };
+        const hours = g.reduce((a, x) => a + x.s.hours, 0) || 1;
+        const pct = Math.round(g.reduce((a, x) => a + x.s.hours * x.L.pct, 0) / hours);
+        const ph = PL.phases.find((q) => q.id === g[0].s.phase);
+        return { s: { ...g[0].s, title: ph ? ph.title : g[0].s.title, why: ph ? ph.why : g[0].s.why }, L: { pct, done: false }, role: g[0].role,
+          start: Math.min(...g.map((x) => x.start)), end: Math.max(...g.map((x) => x.end)), remaining: g.reduce((a, x) => a + x.remaining, 0), members: g };
+      });
+      const doneN = bars.filter((b) => b.s.lane === lane.id && b.L.done).length, allN = bars.filter((b) => b.s.lane === lane.id).length;
+      // pack bars into sub-rows so overlapping ones stack
+      const rows = [];
+      laneBars.sort((a, b) => a.start - b.start).forEach((b) => {
+        const endW = b.end == null ? Infinity : b.end;
+        let ri = rows.findIndex((rEnd) => rEnd <= b.start + 1e-6);
+        if (ri < 0) { rows.push(endW); ri = rows.length - 1; } else rows[ri] = endW;
+        b.row = ri;
+      });
+      const track = h("div", { class: "tl-track", style: `height:${Math.max(1, rows.length) * 44 + 44}px` }, grid());
+      laneBars.forEach((b) => {
+        const left = xOf(b.start); if (left >= trackW) return;
+        const right = b.end == null ? trackW : Math.min(xOf(b.end), trackW);
+        const width = Math.max(10, right - left);
+        const prog = !b.L.done && b.L.pct > 0;
+        const nums = b.members.map((x) => num(x.s.id));
+        const numText = compactNums(nums);
+        const tip = `${b.members.length > 1 ? "Steps " + numText : numText + "."} ${b.s.title}\n${ROLE_LABEL[b.role]} · ${b.s.ongoing ? "ongoing" : `≈ ${Math.round(b.remaining)} h left · ${fmtDay(dateAt(b.start))} → ${fmtDay(dateAt(b.end))}`}${prog ? ` · ${b.L.pct}% done` : ""}${b.members.length > 1 ? "\n\n" + b.members.map((x) => `${num(x.s.id)}. ${x.s.title}`).join("\n") : "\n\nWhy: " + b.s.why}\nClick to jump to the checklist`;
+        track.append(h("button", {
+          class: `tl-bar role-${b.role}` + (b.s.ongoing ? " open" : "") + (prog ? " prog" : "") + (b.end != null && xOf(b.end) > trackW ? " cut" : ""),
+          style: `left:${left}px;width:${width}px;top:${12 + b.row * 44}px;--c:${color};--p:${b.L.pct}%`, title: tip,
+          onclick: () => { const el = document.getElementById("step-" + (b.members.find((x) => !x.L.done) || b.members[0]).s.id); if (el) { el.scrollIntoView({ behavior: "smooth", block: "center" }); el.classList.add("flash"); setTimeout(() => el.classList.remove("flash"), 1400); } } },
+          h("span", { class: "tl-num", text: numText }), h("span", { class: "tl-bar-text", text: b.s.title })));
+        let lastMsX = -999, stagger = 0;
+        b.members.filter((x) => x.s.cert && x.end != null).forEach((x) => {
+          const set = x.L.examDate ? (new Date(x.L.examDate + "T00:00:00") - t0) / WEEK_MS : null;
+          const w = set != null ? set : x.end, late = set != null && set < x.end;
+          if (w < 0 || xOf(w) >= trackW) return;
+          stagger = xOf(w) - lastMsX < 80 ? stagger + 1 : 0; lastMsX = xOf(w);
+          track.append(h("span", { class: "tl-ms" + (late ? " late" : ""), style: `left:${xOf(w)}px;top:${12 + b.row * 44 + 36 + stagger * 14}px;--c:${color}`,
+            title: `${x.L.code || "Exam"} ${set != null ? "on" : "≈"} ${fmtDay(dateAt(w))}${late ? "\nYour exam date is before the planned end of prep: add hours or move the date." : ""}` },
+            h("span", { class: "tl-ms-label", text: (late ? "⚠ " : "") + (x.L.code || "Exam") })));
+        });
+      });
+      box.append(h("div", { class: "tl-row", style: `--c:${color}` },
+        h("div", { class: "tl-label", style: `--c:${color}` }, h("div", { class: "tl-lane-name", text: lane.name }),
+          h("div", { class: "meta", text: `${doneN}/${allN} steps done` })),
+        track));
     });
 
-    // summary line
-    const fmtMs = (x) => `${x.code} ${x.set ? "on" : "≈"} ${fmtMonth(x.date)}${x.late ? " ⚠" : ""}`;
-    const mscs = lanes.flatMap((l) => l.bars).find((b) => b.item.id === "rm-mscs-pathway");
-    $("plan-summary").textContent = [
-      `${totalPerWeek} h per week across ${lanes.length} parallel lanes`,
-      milestones.length ? "Exams: " + milestones.map(fmtMs).join(" · ") : null,
-      mscs && isFinite(mscs.start) ? `MS-CS pathway starts ≈ ${fmtMonth(dateAt(mscs.start))}` : null
-    ].filter(Boolean).join("  ·  ");
-    const ol = $("plan-principles"); ol.textContent = "";
-    (rm.principles || []).forEach((p) => ol.append(h("li", { text: p })));
+    // ── summary
+    const exams = bars.filter((b) => b.s.cert && !b.L.done && b.end != null).map((b) => `${b.L.code || "Exam"} ${b.L.examDate ? "on" : "≈"} ${fmtMonth(b.L.examDate ? new Date(b.L.examDate + "T00:00:00") : dateAt(b.end))}`);
+    const doneAll = PL.steps.filter((s) => stepLink(s).done).length;
+    $("plan-summary").textContent = [`${doneAll} of ${PL.steps.length} steps done`, `${planBudget} h per week`, exams.length ? "Exams: " + exams.join(" · ") : null].filter(Boolean).join("  ·  ");
+
+    // ── checklist
+    const list = $("checklist"); list.textContent = "";
+    let n = 0;
+    phases.forEach((p, i) => {
+      const steps = PL.steps.filter((s) => s.phase === p.ph.id);
+      const links = steps.map(stepLink);
+      const countable = steps.map((s, k) => [s, links[k]]).filter(([s]) => !s.ongoing || s.lane === "review" || !s.ref);
+      const doneN = countable.filter(([, l]) => l.done).length, totalN = countable.length;
+      const current = !(doneN === totalN) && phases.slice(0, i).every((q) => PL.steps.filter((s) => s.phase === q.ph.id).every((s) => stepLink(s).done || s.ongoing));
+      const nextIds = new Set();
+      ["main", "support", "habit"].forEach((role) => { const s = steps.find((x, k) => x.role === role && !links[k].done && !x.ongoing); if (s) nextIds.add(s.id); });
+      const card = h("section", { class: "card phase-card" + (current ? " current" : "") + (doneN === totalN ? " complete" : "") },
+        h("div", { class: "phase-head" },
+          h("div", null,
+            h("h2", null, h("span", { class: "phase-num", text: `Phase ${i + 1}` }), " " + p.ph.title),
+            h("p", { class: "meta", text: p.end > p.start ? `≈ ${fmtDay(dateAt(p.start))} → ${fmtDay(dateAt(p.end))}` : "Done" })),
+          h("div", { class: "phase-prog" }, h("span", { text: `${doneN}/${totalN}` }),
+            h("span", { class: "progress mini" }, h("div", { style: `width:${(doneN / Math.max(1, totalN)) * 100}%;background:var(--accent)` })))),
+        h("p", { class: "phase-why", text: p.ph.why }));
+      const ol = h("ol", { class: "steps" });
+      steps.forEach((s, k) => {
+        n = num(s.id);
+        const L = links[k], lane = PL.lanes.find((l) => l.id === s.lane), color = (catById(lane.topic) || catById("other")).color;
+        const cb = h("input", { type: "checkbox", checked: L.done || null, "aria-label": "Done: " + s.title, onchange: (e) => setStepDone(s, e.target.checked) });
+        if (s.ongoing) { cb.disabled = !!(L.kind === "course"); }
+        ol.append(h("li", { class: "step-item" + (L.done ? " done" : "") + (nextIds.has(s.id) && current ? " next" : ""), id: "step-" + s.id, style: `--c:${color}` },
+          h("label", { class: "step-check" }, cb),
+          h("div", { class: "step-body" },
+            h("div", { class: "step-title" },
+              h("span", { class: "step-num", text: String(n) }),
+              L.url ? h("a", { href: safeUrl(L.url), target: "_blank", rel: "noopener noreferrer", text: s.title + " ↗" }) : h("span", { text: s.title }),
+              nextIds.has(s.id) && current ? h("span", { class: "next-badge", text: "Next" }) : null),
+            h("div", { class: "meta-row" },
+              h("span", { class: "role-pill role-" + s.role, text: ROLE_LABEL[s.role] }),
+              h("span", { class: "type-pill", style: `border-color:${color};color:${color}`, text: lane.name }),
+              s.ongoing ? h("span", { class: "meta", text: "ongoing" }) : h("span", { class: "meta", text: `≈ ${s.hours} h` }),
+              !L.done && L.pct > 0 && !s.ongoing ? h("span", { class: "meta step-pct", text: `${L.pct}% done` }) : null,
+              L.kind === "exam" && L.examDate ? h("span", { class: "meta", text: `exam ${L.examDate}` }) : null,
+              s.project ? h("span", { class: "meta", text: "🛠 log it on My courses as a Project when done" }) : null),
+            h("p", { class: "step-why" }, h("b", { text: "Why: " }), s.why),
+            h("p", { class: "step-how" }, h("b", { text: "How: " }), s.how))));
+      });
+      card.append(ol);
+      list.append(card);
+    });
+
+    // ── methods
+    const mbox = $("plan-methods"); mbox.textContent = "";
+    (PL.methods || []).forEach((x) => mbox.append(h("div", { class: "method" }, h("b", { text: x.name }), h("span", { class: "method-strength", text: x.strength }), h("span", { text: x.tip }))));
   }
-  document.querySelectorAll(".rng-btn").forEach((b) => b.addEventListener("click", () => { planMonths = +b.dataset.months; store.set("skillmap.planMonths", planMonths); renderPlan(); }));
+  if ($("budget-minus")) {
+    $("budget-minus").addEventListener("click", () => { planBudget = Math.max(3, planBudget - 1); savePlan(); renderPlan(); });
+    $("budget-plus").addEventListener("click", () => { planBudget = Math.min(40, planBudget + 1); savePlan(); renderPlan(); });
+  }
+  document.querySelectorAll(".rng-btn").forEach((b) => b.addEventListener("click", () => { planMonths = +b.dataset.months; savePlan(); renderPlan(); }));
 
   // ───────────────────────── light / dark theme ─────────────────────────
   function applyTheme(choice) {

@@ -27,11 +27,12 @@ Everything on My courses is one list with two ways to slice it:
 
 ## Plan
 
-The **Plan** tab is a timeline with parallel lanes (AI engineering; AI governance → AIGP → TOGAF; CS foundations → MS-CS; consulting & communication):
+The **Plan** tab is a phased study plan: a swimlane timeline on top and a step-by-step checklist below.
 
-- Bars are scheduled from each lane's **hours per week** (− / +) and rough hour estimates, in dependency order; the plan re-flows when you change the hours or make progress on My courses.
-- In-progress items are partly filled; ◆ marks exams (at your exam date if you set one, with ⚠ if it falls before prep is done).
-- "Why this order" explains the sequencing. Lanes, estimates and principles live in `roadmap` in `data.js`.
+- **Phases** (AI engineering depth → AIGP → MS-CS pathway courses → TOGAF), each with one **main** track (~60% of your weekly hours), one **support** track (~25%) and a light **habit** (~15%). When main or support finishes early in a phase, its time goes to the other.
+- **Swimlanes** by subject; steps of the same phase and role are merged into one numbered bar; ◆ marks exams (⚠ if your exam date is before prep ends). Click a bar to jump to its steps.
+- **Checklist:** every step has a checkbox, its order number, a link, a role, an hour estimate, **why** it's in that position and **how** to study it (retrieval practice, spacing, interleaving, projects). Ticking syncs with My courses: course and CS50x-week steps mark them complete, exam steps mark the exam passed.
+- One **hours per week** control re-flows the whole plan. Steps, phases and methods live in `plan` in `data.js`.
 
 ## Certifications
 

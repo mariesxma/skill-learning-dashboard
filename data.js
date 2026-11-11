@@ -243,50 +243,149 @@ window.LEARNING_DATA = {
     { id: "fin-llm", domain: "aifin", label: "LLMs for finance", definition: "Applying LLMs and RAG to research reports, filings and customer service, such as summarizing a 10-K or answering questions over it.", related: ["rag", "statements", "agents", "mcp"] }
   ],
 
-  // Your plan: added once to My courses as "Up next" (bump the id to add new items later).
-  // The Plan tab: parallel lanes on a timeline. Hours are rough estimates; each lane's weekly
-  // hours can be changed on the page. `ref` links a course/degree/reading, `cert`+`exam` a
-  // certification exam (milestone), `match` one of your own courses by keyword.
-  roadmap: {
+  // The Plan tab: a phased study plan. Each phase has one MAIN track (~60% of your weekly hours),
+  // one SUPPORT track (~25%) and a light HABIT (~15%). Steps are done in order; each has a link,
+  // the reason for its position (why) and the study method to use (how). Hours are rough estimates.
+  // A step can link to a course (`ref`, optional `modules`), one of your own courses (`match`)
+  // or a certification exam (`cert` + `exam`); otherwise its checkbox is stored on its own.
+  plan: {
+    budget: 12,
+    split: { main: 0.6, support: 0.25, habit: 0.15 },
     lanes: [
-      { id: "ai", name: "AI engineering", note: "Depth track: learn it, then build it", topic: "ai", hoursPerWeek: 4,
-        items: [
-          { id: "rm-fde", match: "fde", label: "AI FDE / Agentic AI Architect course", hours: 30 },
-          { id: "rm-mcp-project", label: "Project: build an MCP server for finance data", hours: 20, after: ["rm-fde"], kind: "project", match: "mcp server" },
-          { id: "rm-agents-project", label: "Project: multi-agent workflow with evals & guardrails", hours: 25, after: ["rm-mcp-project"], kind: "project" }
-        ] },
-      { id: "gov", name: "AI governance → AIGP → TOGAF", note: "One exam at a time; readings double as exam prep", topic: "gov", hoursPerWeek: 4,
-        items: [
-          { id: "rm-gov-reading", refs: ["c-genai-everyone", "r-nist-ai-rmf", "r-eu-ai-act", "r-gdpr", "r-iso-42001", "r-nist-1270"],
-            label: "Generative AI for Everyone + 5 official readings (NIST AI RMF, EU AI Act, GDPR, ISO/IEC 42001, NIST SP 1270)", hours: 31 },
-          { id: "rm-aigp", cert: "aigp", exam: "aigp-exam", label: "AIGP exam prep", hours: 35, after: ["rm-gov-reading"] },
-          { id: "rm-togaf-std", ref: "c-togaf-standard", hours: 15, after: ["rm-aigp"] },
-          { id: "rm-togaf-1", cert: "togaf10", exam: "foundation", label: "TOGAF Part 1 prep (OGEA-101)", hours: 25, after: ["rm-togaf-std"] },
-          { id: "rm-togaf-2", cert: "togaf10", exam: "practitioner", label: "TOGAF Part 2 prep (OGEA-102)", hours: 30, after: ["rm-togaf-1"] }
-        ] },
-      { id: "cs", name: "CS foundations → MS-CS", note: "Steady base; the degree starts after CS50x", topic: "cs", hoursPerWeek: 5,
-        items: [
-          { id: "rm-cs50x", ref: "c-cs50x", hours: 110 },
-          { id: "rm-mscs-pathway", ref: "d-mscs", label: "MS-CS pathway courses (performance-based admission)", hours: 150, after: ["rm-cs50x"] },
-          { id: "rm-mscs", ref: "d-mscs", label: "MS-CS degree courses, one at a time", hours: 600, after: ["rm-mscs-pathway"], open: true }
-        ] },
-      { id: "consult", name: "Consulting & communication", note: "Light weekly habit", topic: "consult", hoursPerWeek: 1,
-        items: [
-          { id: "rm-emory-1", ref: "c-emory-present", hours: 7 },
-          { id: "rm-emory-2", ref: "c-emory-problem", hours: 7, after: ["rm-emory-1"] },
-          { id: "rm-memos", label: "Habit: a one-page pyramid memo + 3-minute pitch per project", hours: 40, after: ["rm-emory-2"], open: true }
-        ] }
+      { id: "ai", name: "AI engineering", topic: "ai" },
+      { id: "gov", name: "AI governance · AIGP", topic: "gov" },
+      { id: "cs", name: "CS foundations · MS-CS", topic: "cs" },
+      { id: "ea", name: "Enterprise architecture · TOGAF", topic: "ea" },
+      { id: "consult", name: "Consulting & communication", topic: "consult" },
+      { id: "review", name: "Review habit", topic: "other" }
     ],
-    principles: [
-      "One deep track, the others light: keep moving on every lane, but never prepare for two exams at the same time.",
-      "Finish CS50x before the MS-CS pathway courses: the topics overlap, the stakes are lower, and the degree admits on performance.",
-      "Read the governance sources before AIGP prep: NIST AI RMF, the EU AI Act, GDPR and ISO/IEC 42001 are the exam's body of knowledge.",
-      "AIGP before TOGAF: it overlaps with your AI work; TOGAF is a separate body of knowledge best done in one focused block.",
-      "Turn each course into a project quickly; projects are what move skills to Apply.",
-      "Consulting is a habit, not a course: after each project, write a one-page pyramid memo and record a 3-minute pitch."
+    phases: [
+      { id: "p1", title: "Build AI engineering depth",
+        why: "Your depth track comes first: it gives everything after it (AIGP, architecture) concrete examples to hang on. CS50x keeps your foundations moving on the side." },
+      { id: "p2", title: "AIGP: learn through the exam",
+        why: "AI governance overlaps most with your AI work. Studying by the exam outline with practice questions from week one is the most efficient way to learn it." },
+      { id: "p3", title: "MS-CS pathway courses",
+        why: "Pathway course grades decide admission, so they get a phase of their own and never overlap with an exam crunch." },
+      { id: "p4", title: "TOGAF in one focused block",
+        why: "TOGAF is a separate body of knowledge with its own vocabulary; one focused block (Part 1 then Part 2) avoids forgetting between the two exams." }
+    ],
+    steps: [
+      // ── Phase 1
+      { id: "s-anki", phase: "p1", role: "habit", lane: "review", ongoing: true, hours: 0,
+        title: "Set up a spaced-repetition deck (Anki) and review 15 minutes a day", url: "https://apps.ankiweb.net/",
+        why: "Spaced retrieval is the best-supported study method there is; starting now means every later phase benefits.",
+        how: "After each study session write 5–10 question cards in your own words. Review daily; never just reread notes." },
+      { id: "s-fde", phase: "p1", role: "main", lane: "ai", match: "fde", hours: 30,
+        title: "Finish the AI FDE / Agentic AI Architect course",
+        why: "Your main goal track. Concepts here (agents, MCP, architecture) are reused in every later phase.",
+        how: "After each section, close the video and rebuild the example from memory before checking. Write down open questions." },
+      { id: "s-mcp", phase: "p1", role: "main", lane: "ai", hours: 20, project: true,
+        title: "Project: build a small MCP server (e.g. finance data)", url: "https://modelcontextprotocol.io/",
+        why: "Building it is what moves MCP, tool use and APIs from Understand to Apply.",
+        how: "Keep scope tiny: one tool, one resource. Ship it, write a README, then log it on My courses as a Project." },
+      { id: "s-cs50-a", phase: "p1", role: "support", lane: "cs", ref: "c-cs50x", modules: ["w0", "w1", "w2", "w3", "w4", "w5"], hours: 60,
+        title: "CS50x Weeks 0–5 (Scratch, C, arrays, algorithms, memory, data structures)",
+        why: "Hands-on and steady: a good contrast to the course-heavy main track, and the base for the MS-CS later.",
+        how: "Attempt each problem set before watching walkthroughs. Do one week per 1–2 weeks; don't binge." },
+      { id: "s-emory-1", phase: "p1", role: "habit", lane: "consult", ref: "c-emory-present", hours: 7,
+        title: "Consulting Presentations and Storytelling (Emory)",
+        why: "Short; it teaches the pyramid structure you will use for every memo from now on.",
+        how: "Re-write one slide or email from your own work with an action title after each module." },
+      { id: "s-genai", phase: "p1", role: "habit", lane: "gov", ref: "c-genai-everyone", hours: 6,
+        title: "Generative AI for Everyone",
+        why: "A light, business-level primer that gives Phase 2 (AIGP) its context.",
+        how: "Watch at normal speed; for each lesson write one card: 'what would I tell a client about this?'" },
+
+      // ── Phase 2
+      { id: "s-aigp-bok", phase: "p2", role: "main", lane: "gov", hours: 3,
+        title: "Download the AIGP Body of Knowledge and exam blueprint; turn each item into a question", url: "https://iapp.org/certify/aigp/",
+        why: "The exam outline becomes your study map, so you study what is tested, in the right depth.",
+        how: "One line per BoK item as a question ('What does the EU AI Act require for high-risk systems?'). These become Anki cards." },
+      { id: "s-aigp-practice", phase: "p2", role: "main", lane: "gov", hours: 6,
+        title: "Do practice questions from week one, not only at the end", url: "https://iapp.org/certify/aigp-candidate-handbook",
+        why: "Testing yourself before you feel ready (pre-testing) improves what you then learn from reading.",
+        how: "Do 10–20 questions a week; for each wrong answer, write a card explaining the right answer." },
+      { id: "s-nist-rmf", phase: "p2", role: "main", lane: "gov", ref: "r-nist-ai-rmf", hours: 4,
+        title: "NIST AI RMF: the Govern, Map, Measure and Manage functions",
+        why: "The most widely used AI risk framework; the vocabulary for everything else in AIGP.",
+        how: "Read the four functions, then draw them from memory on one page." },
+      { id: "s-eu-ai-act", phase: "p2", role: "main", lane: "gov", ref: "r-eu-ai-act", hours: 8,
+        title: "EU AI Act key provisions: prohibited practices (Art. 5), high-risk classification (Art. 6) and requirements (Arts. 8–15), transparency (Art. 50), general-purpose AI (Chapter V)",
+        why: "The core law on the exam; reading only the key provisions is far more efficient than reading it cover to cover.",
+        how: "For each provision, write who it applies to, what they must do, and one example from your own AI work." },
+      { id: "s-gdpr", phase: "p2", role: "main", lane: "gov", ref: "r-gdpr", hours: 6,
+        title: "GDPR key articles: principles (Art. 5), lawful basis (Art. 6), automated decisions (Art. 22), DPIA (Art. 35)",
+        why: "Where data protection meets algorithmic bias, a frequent exam and real-world topic.",
+        how: "Link each article to an AI case, e.g. Art. 22 ↔ credit scoring. Use the connected nodes on the Skill map." },
+      { id: "s-iso", phase: "p2", role: "main", lane: "gov", ref: "r-iso-42001", hours: 4,
+        title: "ISO/IEC 42001: management-system clauses and Annex A controls",
+        why: "Shows how governance is run in practice; links to TOGAF's governance ideas later.",
+        how: "Skim the clause structure; compare it with NIST AI RMF in a two-column table." },
+      { id: "s-nist-1270", phase: "p2", role: "main", lane: "gov", ref: "r-nist-1270", hours: 3,
+        title: "NIST SP 1270: sources of bias in AI",
+        why: "Gives the bias and fairness part of AIGP a solid structure.",
+        how: "Summarize the three bias categories with one example each from your own projects." },
+      { id: "s-memos", phase: "p2", role: "habit", lane: "consult", hours: 8,
+        title: "Write a one-page pyramid memo for each law or framework you study",
+        why: "Doubles as retrieval practice for AIGP and as consulting writing practice.",
+        how: "Answer first, then three supporting points; no more than one page." },
+      { id: "s-cs50-b", phase: "p2", role: "support", lane: "cs", ref: "c-cs50x", modules: ["w6", "w7", "w8", "w9", "project"], hours: 50,
+        title: "CS50x Weeks 6–9 and Final Project (Python, SQL, web, Flask)",
+        why: "Hands-on contrast to AIGP's reading; finishes your foundation before the MS-CS phase.",
+        how: "Same rule: problem set first, help second. Make the final project something you can reuse (e.g. a small AI tool)." },
+      { id: "s-aigp-exam", phase: "p2", role: "main", lane: "gov", cert: "aigp", exam: "aigp-exam", hours: 8,
+        title: "Book and pass the AIGP exam",
+        why: "Ends the phase with a milestone while everything is fresh.",
+        how: "Book once you score comfortably on full timed practice exams; in the final week only review your cards and wrong answers." },
+
+      // ── Phase 3
+      { id: "s-mscs-pathway", phase: "p3", role: "main", lane: "cs", ref: "d-mscs", hours: 150,
+        title: "MS-CS pathway courses (CU Boulder on Coursera)",
+        why: "High stakes: your grades decide admission, so this is the only main track in the phase.",
+        how: "Treat each course like an exam: weekly spaced review, practice problems, and the course forums before deadlines." },
+      { id: "s-agents-project", phase: "p3", role: "support", lane: "ai", hours: 25, project: true,
+        title: "Project: multi-agent workflow with evals and guardrails", url: "https://www.anthropic.com/engineering/building-effective-agents",
+        why: "Applies AIGP ideas (risk, evaluation, transparency) to real code; keeps your AI skills active.",
+        how: "Write the evaluation set first, then build. Document risks and controls as a short model card." },
+      { id: "s-aigp-review", phase: "p3", role: "habit", lane: "review", hours: 6,
+        title: "Keep reviewing your AIGP cards (spaced: 1, 3, 7, 14, 30 days)",
+        why: "Without review most exam knowledge fades within months; spacing keeps it for the long term.",
+        how: "15 minutes a day in Anki; suspend cards you know cold." },
+
+      // ── Phase 4
+      { id: "s-togaf-std", phase: "p4", role: "main", lane: "ea", ref: "c-togaf-standard", hours: 15,
+        title: "Read the TOGAF Standard core: the ADM first, then the content framework",
+        why: "The ADM is the backbone of both exams; everything else hangs off it.",
+        how: "Draw the ADM cycle from memory every few days until you can list each phase's purpose and outputs." },
+      { id: "s-togaf-1", phase: "p4", role: "main", lane: "ea", cert: "togaf10", exam: "foundation", hours: 25,
+        title: "TOGAF Part 1 (OGEA-101): practice questions, then the exam",
+        why: "Closed book, so it rewards retrieval practice; take it while Part 2 material is still ahead.",
+        how: "Timed 40-question practice sets; mix questions across ADM phases (interleaving) instead of one phase at a time." },
+      { id: "s-togaf-2", phase: "p4", role: "main", lane: "ea", cert: "togaf10", exam: "practitioner", hours: 30,
+        title: "TOGAF Part 2 (OGEA-102): scenario practice, then the exam",
+        why: "Builds directly on Part 1; doing it right after avoids relearning.",
+        how: "Practice choosing the best answer in scenarios and finding things fast in the standard (open book)." },
+      { id: "s-mscs-degree", phase: "p4", role: "support", lane: "cs", ref: "d-mscs", ongoing: true, hours: 0,
+        title: "MS-CS degree courses, one at a time",
+        why: "Once admitted, a steady one-course pace fits alongside other goals.",
+        how: "One course at a time; keep the same weekly review habit." },
+      { id: "s-pitch", phase: "p4", role: "habit", lane: "consult", ongoing: true, hours: 0,
+        title: "After every project: a one-page memo and a 3-minute recorded pitch",
+        why: "Communication improves with repetition and feedback, not more courses.",
+        how: "Record, watch it back once, note one thing to improve next time." }
+    ],
+    methods: [
+      { name: "Retrieval practice", strength: "Strong evidence", tip: "Test yourself (questions, explaining from memory) instead of rereading." },
+      { name: "Spaced repetition", strength: "Strong evidence", tip: "Review after 1, 3, 7, 14 and 30 days; a few minutes daily beats long sessions." },
+      { name: "Learning by doing", strength: "Strong for skills", tip: "Build a project after each course; it is what moves skills to Apply." },
+      { name: "Interleaving", strength: "Moderate evidence", tip: "Mix similar topics that are easy to confuse (ADM phases, different laws); not unrelated subjects." },
+      { name: "Elaboration", strength: "Moderate evidence", tip: "Ask why, and link new ideas to ones you know (the dashed links on the Skill map)." },
+      { name: "One session, one subject", strength: "Task-switching costs", tip: "Parallel tracks on different days or sessions, not three subjects in one evening." },
+      { name: "Rereading and highlighting", strength: "Low value", tip: "Fine for a first pass, but never the main way to study." }
     ]
   },
 
+  // Your plan: added once to My courses as "Up next" (bump the id to add new items later).
   starterPlan: {
     id: "plan-2026-11",
     certifications: ["togaf10", "aigp"],
