@@ -208,6 +208,9 @@ window.LEARNING_DATA = {
     { id: "guardrails", topic: "ai-agentic", label: "Guardrails & AI safety", definition: "Controls that keep AI systems safe and on-task: input/output filtering, permissions on tools, prompt-injection defenses, and approval steps for risky actions.", related: ["tool-use", "security-basics"] },
     { id: "llmops", topic: "ai-agentic", label: "LLMOps & observability", definition: "Running AI apps in production: deployment, tracing each LLM and tool call, monitoring cost, latency and quality, and versioning prompts and models.", related: ["evals", "git", "testing"] },
     { id: "ai-architecture", topic: "ai-agentic", label: "AI solution architecture", definition: "Designing the end-to-end system around a model: choosing models, data and retrieval, tools/MCP integrations, security, scaling and cost, and how it fits the customer's existing stack.", related: ["llmops", "rag", "mcp", "guardrails", "system-design"] },
+    { id: "claude-code", topic: "ai-agentic", label: "Claude Code (agentic coding)", definition: "Anthropic's coding agent: it reads a codebase, runs commands, edits files and tests in a loop, so you can build prototypes and demos far faster. You steer it with instructions, project memory (CLAUDE.md) and review.", related: ["agents", "tool-use", "mcp"] },
+    { id: "agent-permissions", topic: "ai-agentic", label: "Hooks, permissions & subagents", definition: "How an agentic tool is controlled: permission modes decide which actions need approval, hooks run your own checks before or after tool calls, and subagents split work into focused helpers.", related: ["claude-code", "guardrails", "multi-agent"] },
+    { id: "agent-sdk", topic: "ai-agentic", label: "Claude Agent SDK", definition: "Claude Code's agent loop and built-in tools packaged as a library, so you can embed a coding or file-working agent in your own application and host it yourself.", related: ["claude-code", "orchestration", "agents"] },
     { id: "fde", topic: "ai-agentic", label: "Forward deployed engineering", definition: "Engineers who embed with customers to discover their problems, then design, build and deploy AI solutions in the customer's real environment, mixing solution architecture, hands-on coding and stakeholder work.", related: ["ai-architecture"] },
 
     // ── Finance · Core
@@ -279,10 +282,14 @@ window.LEARNING_DATA = {
         title: "Finish the AI FDE / Agentic AI Architect course",
         why: "Already 40% or so done; finishing it while fresh avoids relearning. Agents, MCP and architecture come up in every later phase and in client work.",
         how: "After each section, close the video and rebuild the example from memory before checking. Write down open questions." },
+      { id: "s-cc", phase: "p1", role: "habit", lane: "ai", ref: "c-cc-in-action", hours: 3,
+        title: "Claude Code in Action (Anthropic Academy)",
+        why: "Claude Code is the tool you will build every later project and client demo with, so learning it first makes the rest faster.",
+        how: "Follow along in a real repository, not just the videos: set up project memory (CLAUDE.md), try plan mode, and write one hook." },
       { id: "s-mcp", phase: "p1", role: "main", lane: "ai", hours: 20, project: true,
-        title: "Project: build a small MCP server you can demo to clients", url: "https://modelcontextprotocol.io/",
-        why: "Building it moves MCP, tool use and APIs from Understand to Apply, and a working demo is worth more in client conversations than any slide.",
-        how: "Keep scope tiny: one tool, one resource. Ship it, write a README, then log it on My courses as a Project." },
+        title: "Project: build a small MCP server with Claude Code, one you can demo to clients", url: "https://modelcontextprotocol.io/",
+        why: "Building it moves MCP, tool use and APIs from Understand to Apply, practices Claude Code on real work, and a working demo is worth more in client conversations than any slide.",
+        how: "Keep scope tiny: one tool, one resource. Let Claude Code scaffold and test it, review every change it makes, then write a README and log it on My courses as a Project." },
       { id: "s-cs50-a", phase: "p1", role: "support", lane: "cs", ref: "c-cs50x", modules: ["w0", "w1", "w2", "w3", "w4", "w5"], hours: 60,
         title: "CS50x Weeks 0–5 (Scratch, C, arrays, algorithms, memory, data structures)",
         why: "Hands-on and steady: a good contrast to the course-heavy main track, and the base for the MS-CS later.",
@@ -356,9 +363,9 @@ window.LEARNING_DATA = {
         why: "Builds directly on Part 1; doing it right after avoids relearning.",
         how: "Practice choosing the best answer in scenarios and finding things fast in the standard (open book)." },
       { id: "s-agents-project", phase: "p3", role: "support", lane: "ai", hours: 25, project: true,
-        title: "Project: multi-agent workflow with evals and guardrails", url: "https://www.anthropic.com/engineering/building-effective-agents",
-        why: "Hands-on contrast to TOGAF's theory, and it applies AIGP ideas (risk, evaluation, transparency) to real code.",
-        how: "Write the evaluation set first, then build. Document risks and controls as a short model card." },
+        title: "Project: multi-agent workflow on the Claude Agent SDK, with evals and guardrails", url: "https://code.claude.com/docs/en/agent-sdk",
+        why: "Hands-on contrast to TOGAF's theory. It applies AIGP ideas (risk, evaluation, transparency) to real code and teaches you to embed an agent in your own application, which is what clients ask for next.",
+        how: "Write the evaluation set first, then build. Use hooks and permission settings as your guardrails, and document risks and controls as a short model card." },
       { id: "s-aigp-review", phase: "p3", role: "habit", lane: "review", hours: 6,
         title: "Keep reviewing your AIGP cards (spaced: 1, 3, 7, 14, 30 days)",
         why: "Without review most exam knowledge fades within months; spacing keeps it for the long term.",
@@ -398,11 +405,15 @@ window.LEARNING_DATA = {
   },
 
   // Your plan: added once to My courses as "Up next" (bump the id to add new items later).
-  starterPlan: {
-    id: "plan-2026-11",
-    certifications: ["togaf10", "aigp"],
-    planned: ["d-mscs", "r-nist-ai-rmf", "r-iso-42001", "r-eu-ai-act", "r-gdpr", "r-nist-1270", "c-togaf-standard"]
-  },
+  starterPlan: [
+    {
+      id: "plan-2026-11",
+      certifications: ["togaf10", "aigp"],
+      planned: ["d-mscs", "r-nist-ai-rmf", "r-iso-42001", "r-eu-ai-act", "r-gdpr", "r-nist-1270", "c-togaf-standard"]
+    },
+    { id: "plan-2026-11-claude-code", certifications: [], planned: ["c-cc-in-action"] }
+  ],
+
 
   // Certification paths you can add on the My courses page. Links point only to official sites;
   // your own study materials are recognized by the `match` keywords when you paste their links.
@@ -536,6 +547,12 @@ window.LEARNING_DATA = {
       covers: ["transformer", "tokenization", "fine-tuning", "embedding", "agents"] },
     { id: "c-anthropic", title: "Anthropic Courses (prompting, RAG, tool use)", provider: "Anthropic on GitHub", url: "https://github.com/anthropics/courses", cost: "Free", level: "Intermediate",
       covers: ["prompting", "rag", "agents", "tool-use"] },
+    { id: "c-cc-in-action", domain: "ai", title: "Claude Code in Action (Anthropic Academy)", provider: "Anthropic Academy", url: "https://anthropic.skilljar.com/claude-code-in-action", cost: "Free", level: "Beginner",
+      covers: ["claude-code", "agent-permissions", "tool-use"] },
+    { id: "r-claude-code-docs", type: "reading", domain: "ai", title: "Claude Code documentation", provider: "Anthropic", url: "https://code.claude.com/docs", cost: "Free", level: "Beginner",
+      covers: ["claude-code", "agent-permissions", "mcp"] },
+    { id: "r-agent-sdk-docs", type: "reading", domain: "ai", title: "Claude Agent SDK documentation", provider: "Anthropic", url: "https://code.claude.com/docs/en/agent-sdk", cost: "Free", level: "Intermediate",
+      covers: ["agent-sdk", "agents", "orchestration"] },
     { id: "c-mcp-docs", title: "Model Context Protocol: official docs & tutorials", provider: "modelcontextprotocol.io", url: "https://modelcontextprotocol.io/", cost: "Free", level: "Beginner",
       covers: ["mcp", "tool-use"] },
     { id: "c-mcp-dlai", title: "MCP: Build Rich-Context AI Apps with Anthropic", provider: "DeepLearning.AI", url: "https://www.deeplearning.ai/short-courses/mcp-build-rich-context-ai-apps-with-anthropic/", cost: "Free", level: "Intermediate",

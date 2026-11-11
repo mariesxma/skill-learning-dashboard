@@ -1000,6 +1000,8 @@
     "capabilit": ["capability-mapping"], "value stream": ["value-streams"], "business architecture": ["business-arch"], "data architecture": ["data-arch"],
     "application architecture": ["application-arch"], "technology architecture": ["technology-arch"], "roadmap": ["migration-planning"],
     "architecture governance": ["arch-governance"], "architecture principles": ["arch-principles"],
+    "claude code": ["claude-code"], "agent sdk": ["agent-sdk"], "claude agent": ["agent-sdk"], "hooks": ["agent-permissions"],
+    "subagent": ["agent-permissions"], "agentic coding": ["claude-code"],
     "customer discovery": ["fde"], "stakeholder": ["fde"], "fine-tun": ["fine-tuning"], "embedding": ["embedding"]
   };
   const escapeRe = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -1617,7 +1619,7 @@
     if (cert) q.skills.append(h("span", { class: "cert-hint", text: ` 🏅 Counts toward your ${cert.short || cert.name} certification.` }));
     else if (tmpl) q.skills.append(h("span", { class: "cert-hint" }, ` 🏅 Looks like ${tmpl.short || tmpl.name} prep. `,
       h("button", { type: "button", class: "btn small", text: `Track the ${tmpl.short || tmpl.name} certification`, onclick: () => { addCertFromTemplate(tmpl.id); qSkills(); } })));
-    else q.skills.append("No matching skills on your map yet, so this course won't light up any nodes. ",
+    else if (!ids.length) q.skills.append("No matching skills on your map yet, so this course won't light up any nodes. ",
       h("button", { type: "button", class: "btn small", text: "Add skills", onclick: () => { $("q-more").click(); $("curriculum").open = true; } }));
   }
   function qAdd(status) {
@@ -2005,8 +2007,8 @@
     if (changed) save();
   })();
   // Add the starter plan from data.js once (degree, readings, certifications) as "Up next".
-  (() => {
-    const plan = D.starterPlan; if (!plan || !plan.id) return;
+  (Array.isArray(D.starterPlan) ? D.starterPlan : [D.starterPlan]).forEach((plan) => {
+    if (!plan || !plan.id) return;
     const seeded = store.get("skillmap.seeded", []);
     if (seeded.includes(plan.id)) return;
     (plan.planned || []).forEach((id) => { if (!courseStatus[id] && D.courses.some((c) => c.id === id)) courseStatus[id] = "planned"; });
@@ -2018,7 +2020,7 @@
     });
     store.set("skillmap.seeded", [...seeded, plan.id]);
     save();
-  })();
+  });
   buildGraph(); renderGraph(); settle(320); positionAll();
   refreshAll(); renderConceptPicker();
   switchView(["graph", "plan"].includes(store.get(KEYS.tab, "log")) ? store.get(KEYS.tab, "log") : "log");
