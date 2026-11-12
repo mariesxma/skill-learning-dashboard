@@ -1,0 +1,143 @@
+// ─────────────────────────────────────────────────────────────
+//  Daily learning: 10–20 minutes a day to understand how the world works.
+//  Each weekday has a track; units in a track go in order and build on each other.
+//  Sunday is review: recall the week, plus items from about four weeks ago (spacing).
+//  Links use each source's search, so they never break: `src` picks the source,
+//  `q` is the search query. Edit freely; unit ids are used to save progress.
+// ─────────────────────────────────────────────────────────────
+window.DAILY_DATA = {
+  season: "Season 1 · How the world works",
+  sources: {
+    khan: { name: "Khan Academy", url: "https://www.khanacademy.org/search?page_search_query=" },
+    yt: { name: "Video (Crash Course, 3Blue1Brown…)", url: "https://www.youtube.com/results?search_query=" },
+    sep: { name: "Stanford Encyclopedia of Philosophy", url: "https://plato.stanford.edu/search/searcher.py?query=" },
+    owid: { name: "Our World in Data", url: "https://ourworldindata.org/search?q=" },
+    smart: { name: "Smarthistory", url: "https://smarthistory.org/?s=" },
+    wiki: { name: "Wikipedia", url: "https://en.wikipedia.org/wiki/Special:Search?search=" }
+  },
+  // weekday: 0 = Sunday … 6 = Saturday
+  tracks: [
+    { id: "math", day: 1, name: "Mathematics", short: "Math", icon: "∑", color: "#4f46e5",
+      why: "The language of patterns, risk and decisions." },
+    { id: "phys", day: 2, name: "Physical sciences", short: "Physics & chemistry", icon: "⚛", color: "#0891b2",
+      why: "Matter, energy and the planet: the rules everything else runs on." },
+    { id: "life", day: 3, name: "Life sciences & health", short: "Life & health", icon: "🧬", color: "#16a34a",
+      why: "How living things, bodies and brains work." },
+    { id: "eng", day: 4, name: "Engineering & technology", short: "Engineering", icon: "⚙", color: "#ea580c",
+      why: "How the things around you actually work." },
+    { id: "soc", day: 5, name: "Society: economics, mind, politics, history", short: "Society", icon: "🏛", color: "#ca8a04",
+      why: "How people, markets and nations behave, and how we got here." },
+    { id: "hum", day: 6, name: "Humanities: philosophy, art, music, stories", short: "Humanities", icon: "🎨", color: "#c026d3",
+      why: "How to think, judge, and see; what makes life meaningful." }
+  ],
+  review: { day: 0, name: "Review & connect", icon: "↻", color: "#64748b" },
+  units: [
+    // ── Mathematics
+    { id: "m01", track: "math", title: "Exponential growth", ask: "Why do people underestimate things that double, like compound interest or an epidemic?", src: "yt", q: "exponential growth explained" },
+    { id: "m02", track: "math", title: "Logarithms", ask: "How do logarithms let us measure things that span huge ranges, like earthquakes or sound?", src: "khan", q: "intro to logarithms" },
+    { id: "m03", track: "math", title: "Probability basics", ask: "What does '70% chance of rain' actually mean?", src: "khan", q: "basic probability" },
+    { id: "m04", track: "math", title: "Bayes' theorem", ask: "Why can a positive result on an accurate test still most likely be wrong?", src: "yt", q: "bayes theorem 3blue1brown" },
+    { id: "m05", track: "math", title: "Expected value", ask: "How do you compare a sure thing with a gamble?", src: "khan", q: "expected value" },
+    { id: "m06", track: "math", title: "Averages and distributions", ask: "When is the median more honest than the mean?", src: "khan", q: "mean median and mode" },
+    { id: "m07", track: "math", title: "Correlation vs. causation", ask: "What else could explain two things moving together?", src: "khan", q: "correlation and causality" },
+    { id: "m08", track: "math", title: "Sampling and surveys", ask: "How can 1,000 people represent a whole country, and when can't they?", src: "khan", q: "sampling methods" },
+    { id: "m09", track: "math", title: "Rates of change and slopes", ask: "What does the slope of a line tell you about the real world?", src: "khan", q: "slope intuition" },
+    { id: "m10", track: "math", title: "Derivatives, intuitively", ask: "What does it mean to know the speed at a single instant?", src: "yt", q: "essence of calculus 3blue1brown" },
+    { id: "m11", track: "math", title: "Integrals, intuitively", ask: "How does adding up tiny pieces give you a total, like distance from speed?", src: "yt", q: "integration and the fundamental theorem of calculus 3blue1brown" },
+    { id: "m12", track: "math", title: "Vectors and matrices", ask: "How do computers turn images and word meanings into lists of numbers?", src: "yt", q: "vectors what even are they 3blue1brown" },
+    { id: "m13", track: "math", title: "Networks and small worlds", ask: "Why are most people only a few handshakes apart?", src: "yt", q: "small world network six degrees explained" },
+    { id: "m14", track: "math", title: "Game theory: the prisoner's dilemma", ask: "Why do rational individuals sometimes produce a bad outcome for everyone?", src: "yt", q: "prisoner's dilemma game theory explained" },
+    { id: "m15", track: "math", title: "Logic and proof", ask: "What makes a mathematical proof different from strong evidence?", src: "khan", q: "introduction to logic and proofs" },
+    { id: "m16", track: "math", title: "Infinity and limits", ask: "How can infinitely many steps add up to a finite distance (Zeno's paradox)?", src: "yt", q: "zeno's paradox limits explained" },
+
+    // ── Physical sciences
+    { id: "p01", track: "phys", title: "The scale of the universe", ask: "How many powers of ten separate an atom from a galaxy?", src: "yt", q: "powers of ten scale of the universe" },
+    { id: "p02", track: "phys", title: "Newton's laws of motion", ask: "Why does a moving object keep moving, and what changes that?", src: "khan", q: "newton's laws of motion" },
+    { id: "p03", track: "phys", title: "Energy and its conservation", ask: "Where does the energy go when a car brakes?", src: "khan", q: "conservation of energy" },
+    { id: "p04", track: "phys", title: "Entropy and the arrow of time", ask: "Why does a hot cup of coffee cool down but never heat up on its own?", src: "yt", q: "entropy explained arrow of time" },
+    { id: "p05", track: "phys", title: "Electricity and magnetism", ask: "How can a moving magnet create an electric current?", src: "yt", q: "crash course physics electromagnetic induction" },
+    { id: "p06", track: "phys", title: "Waves: sound and light", ask: "What do sound, light and Wi-Fi have in common?", src: "khan", q: "introduction to waves" },
+    { id: "p07", track: "phys", title: "Atoms and the periodic table", ask: "Why do elements in the same column behave alike?", src: "yt", q: "crash course chemistry periodic table" },
+    { id: "p08", track: "phys", title: "Chemical bonds", ask: "Why is salt brittle, metal bendy, and plastic flexible?", src: "khan", q: "types of chemical bonds" },
+    { id: "p09", track: "phys", title: "Chemical reactions and combustion", ask: "What actually happens when something burns?", src: "khan", q: "combustion reaction" },
+    { id: "p10", track: "phys", title: "Nuclear energy: fission and fusion", ask: "Where does so much energy come from in such a small amount of fuel?", src: "yt", q: "nuclear fission and fusion explained" },
+    { id: "p11", track: "phys", title: "Plate tectonics", ask: "Why do earthquakes, volcanoes and mountains appear where they do?", src: "yt", q: "crash course geography plate tectonics" },
+    { id: "p12", track: "phys", title: "The greenhouse effect and climate", ask: "How do a few gases warm a whole planet?", src: "owid", q: "co2 and greenhouse gas emissions" },
+    { id: "p13", track: "phys", title: "Weather and the water cycle", ask: "Why does it rain, and why are forecasts only good for a few days?", src: "yt", q: "water cycle and weather explained" },
+    { id: "p14", track: "phys", title: "How stars make elements", ask: "Where did the iron in your blood come from?", src: "yt", q: "stellar nucleosynthesis explained" },
+    { id: "p15", track: "phys", title: "Relativity in one idea", ask: "Why does time pass differently for GPS satellites?", src: "yt", q: "special relativity explained simply" },
+    { id: "p16", track: "phys", title: "What's strange about quantum mechanics", ask: "What does it mean that particles behave like waves until measured?", src: "yt", q: "quantum mechanics explained double slit" },
+
+    // ── Life sciences & health
+    { id: "l01", track: "life", title: "Cells, the unit of life", ask: "What does every living cell need to do to stay alive?", src: "khan", q: "introduction to cells" },
+    { id: "l02", track: "life", title: "DNA and genes", ask: "How does a four-letter code build a whole body?", src: "khan", q: "dna and genes" },
+    { id: "l03", track: "life", title: "Evolution by natural selection", ask: "How can complex designs arise without a designer?", src: "yt", q: "crash course biology natural selection" },
+    { id: "l04", track: "life", title: "Ecosystems and food webs", ask: "What happens when one species disappears from an ecosystem?", src: "khan", q: "food webs" },
+    { id: "l05", track: "life", title: "Photosynthesis", ask: "How do plants turn sunlight into the energy almost all life uses?", src: "khan", q: "photosynthesis" },
+    { id: "l06", track: "life", title: "Metabolism", ask: "What does your body do with the food you eat?", src: "yt", q: "metabolism explained" },
+    { id: "l07", track: "life", title: "The immune system and vaccines", ask: "How does a vaccine teach your body to fight something it has never met?", src: "yt", q: "how the immune system works vaccines" },
+    { id: "l08", track: "life", title: "The microbiome", ask: "Why do the bacteria in your gut matter for health?", src: "yt", q: "human microbiome explained" },
+    { id: "l09", track: "life", title: "Neurons and the brain", ask: "How do electrical signals between cells become thoughts?", src: "yt", q: "crash course psychology the nervous system" },
+    { id: "l10", track: "life", title: "Sleep and memory", ask: "What does sleep do for learning?", src: "yt", q: "sleep and memory consolidation" },
+    { id: "l11", track: "life", title: "Hormones and stress", ask: "Why is short-term stress useful and long-term stress harmful?", src: "yt", q: "stress hormones cortisol explained" },
+    { id: "l12", track: "life", title: "How diseases spread", ask: "What does R0 tell you about an outbreak?", src: "yt", q: "epidemiology R0 explained" },
+    { id: "l13", track: "life", title: "Antibiotic resistance", ask: "How does using antibiotics create bacteria they can't kill?", src: "yt", q: "antibiotic resistance explained" },
+    { id: "l14", track: "life", title: "Gene editing (CRISPR)", ask: "How can we now edit DNA, and what are the risks?", src: "yt", q: "crispr explained" },
+    { id: "l15", track: "life", title: "Why we age", ask: "What actually wears out as we get older?", src: "yt", q: "why do we age biology explained" },
+    { id: "l16", track: "life", title: "Biodiversity and extinction", ask: "How fast are species disappearing, and why does it matter to us?", src: "owid", q: "biodiversity" },
+
+    // ── Engineering & technology
+    { id: "e01", track: "eng", title: "The power grid", ask: "How does electricity get from a power plant to your outlet, and why must supply match demand every second?", src: "yt", q: "how the power grid works" },
+    { id: "e02", track: "eng", title: "How the internet works", ask: "What happens between typing a web address and seeing the page?", src: "khan", q: "the internet" },
+    { id: "e03", track: "eng", title: "How computers work", ask: "How do billions of on/off switches do arithmetic?", src: "yt", q: "crash course computer science logic gates" },
+    { id: "e04", track: "eng", title: "How GPS works", ask: "How does your phone know where it is from satellites?", src: "yt", q: "how gps works" },
+    { id: "e05", track: "eng", title: "Batteries and energy storage", ask: "Why are batteries the bottleneck for phones, cars and the grid?", src: "yt", q: "how lithium ion batteries work" },
+    { id: "e06", track: "eng", title: "Solar and wind power", ask: "Why did solar become so cheap so fast?", src: "owid", q: "solar pv prices" },
+    { id: "e07", track: "eng", title: "Engines and electric motors", ask: "How do engines and motors turn energy into motion?", src: "yt", q: "how electric motors work" },
+    { id: "e08", track: "eng", title: "Bridges and structures", ask: "How do bridges and buildings carry loads without collapsing?", src: "yt", q: "how bridges work structural engineering" },
+    { id: "e09", track: "eng", title: "Materials: steel, concrete, plastic", ask: "Why is the modern world built from these three materials?", src: "yt", q: "concrete steel plastic modern world materials" },
+    { id: "e10", track: "eng", title: "Semiconductors and the chip supply chain", ask: "Why can only a few places on Earth make the most advanced chips?", src: "yt", q: "how are microchips made" },
+    { id: "e11", track: "eng", title: "Cryptography", ask: "How can two strangers share a secret over a public network?", src: "khan", q: "cryptography public key" },
+    { id: "e12", track: "eng", title: "How large language models work", ask: "How does predicting the next word produce something that looks like reasoning?", src: "yt", q: "large language models explained briefly 3blue1brown" },
+    { id: "e13", track: "eng", title: "Clean water and sanitation", ask: "How is drinking water made safe, and why did it change life expectancy?", src: "owid", q: "clean water" },
+    { id: "e14", track: "eng", title: "Manufacturing and supply chains", ask: "How many countries does a simple product pass through?", src: "yt", q: "how global supply chains work" },
+    { id: "e15", track: "eng", title: "Mobile networks", ask: "How does your phone hand a call from one tower to the next?", src: "yt", q: "how cell phone networks work" },
+    { id: "e16", track: "eng", title: "Systems thinking and feedback loops", ask: "Why do some fixes make problems worse?", src: "yt", q: "systems thinking feedback loops explained" },
+
+    // ── Society
+    { id: "s01", track: "soc", title: "Supply and demand", ask: "Why do prices rise when something becomes scarce?", src: "khan", q: "supply and demand" },
+    { id: "s02", track: "soc", title: "Opportunity cost and incentives", ask: "What is the real cost of a free ticket?", src: "khan", q: "opportunity cost" },
+    { id: "s03", track: "soc", title: "Money, banks and central banks", ask: "How do banks create money, and what does a central bank control?", src: "yt", q: "crash course economics how banks create money" },
+    { id: "s04", track: "soc", title: "Inflation", ask: "Why do prices rise over time, and who wins and loses?", src: "khan", q: "inflation" },
+    { id: "s05", track: "soc", title: "Trade and comparative advantage", ask: "Why can trade help both sides even if one is better at everything?", src: "khan", q: "comparative advantage" },
+    { id: "s06", track: "soc", title: "Cognitive biases", ask: "Which mental shortcuts mislead you most often?", src: "yt", q: "cognitive biases explained" },
+    { id: "s07", track: "soc", title: "How habits form", ask: "What is the loop that turns an action into a habit?", src: "yt", q: "habit loop explained" },
+    { id: "s08", track: "soc", title: "Conformity and social influence", ask: "Why do people go along with a group even when it's wrong?", src: "yt", q: "crash course psychology social influence" },
+    { id: "s09", track: "soc", title: "How democracies work", ask: "What keeps the people with power accountable?", src: "yt", q: "crash course government checks and balances" },
+    { id: "s10", track: "soc", title: "Rule of law", ask: "Why does it matter that laws apply to rulers too?", src: "wiki", q: "rule of law" },
+    { id: "s11", track: "soc", title: "The Agricultural Revolution", ask: "How did farming change how humans lived, for better and worse?", src: "yt", q: "crash course world history agricultural revolution" },
+    { id: "s12", track: "soc", title: "The Industrial Revolution", ask: "Why did growth take off in 18th-century Britain?", src: "yt", q: "crash course world history industrial revolution" },
+    { id: "s13", track: "soc", title: "Colonialism and its legacies", ask: "How do events from centuries ago still shape countries today?", src: "yt", q: "crash course world history imperialism" },
+    { id: "s14", track: "soc", title: "The world wars", ask: "How did the world wars reshape the global order?", src: "yt", q: "crash course world history world war ii" },
+    { id: "s15", track: "soc", title: "The Cold War and globalization", ask: "How did the world become as connected as it is now?", src: "yt", q: "crash course world history globalization" },
+    { id: "s16", track: "soc", title: "Poverty, growth and inequality", ask: "How has extreme poverty changed over the last 200 years?", src: "owid", q: "extreme poverty" },
+
+    // ── Humanities
+    { id: "h01", track: "hum", title: "The Socratic method", ask: "How does asking good questions expose what we don't know?", src: "yt", q: "crash course philosophy socrates" },
+    { id: "h02", track: "hum", title: "Ethics: consequences vs. duties", ask: "Should you judge an action by its results or by the rule behind it?", src: "yt", q: "crash course philosophy utilitarianism kant" },
+    { id: "h03", track: "hum", title: "Virtue ethics", ask: "What kind of person should I be, rather than what should I do?", src: "sep", q: "virtue ethics" },
+    { id: "h04", track: "hum", title: "Epistemology: how do we know?", ask: "What's the difference between believing something and knowing it?", src: "yt", q: "crash course philosophy epistemology" },
+    { id: "h05", track: "hum", title: "Philosophy of science", ask: "What makes a claim scientific (Popper's falsifiability)?", src: "sep", q: "popper falsification" },
+    { id: "h06", track: "hum", title: "Free will", ask: "If everything has a cause, are your choices free?", src: "yt", q: "crash course philosophy free will" },
+    { id: "h07", track: "hum", title: "Mind and consciousness", ask: "Why is subjective experience so hard to explain?", src: "sep", q: "consciousness" },
+    { id: "h08", track: "hum", title: "Justice: the veil of ignorance", ask: "What rules would you choose for society if you didn't know your place in it?", src: "sep", q: "rawls original position" },
+    { id: "h09", track: "hum", title: "Confucius and Daoism", ask: "What do these traditions say about a good life and a good society?", src: "yt", q: "confucianism and daoism explained" },
+    { id: "h10", track: "hum", title: "Stoicism", ask: "What is in your control, and what isn't?", src: "sep", q: "stoicism" },
+    { id: "h11", track: "hum", title: "How to look at a painting", ask: "What do composition, color and light do to your eye?", src: "smart", q: "how to look at art" },
+    { id: "h12", track: "hum", title: "Renaissance art and perspective", ask: "How did linear perspective change how people saw the world?", src: "smart", q: "linear perspective renaissance" },
+    { id: "h13", track: "hum", title: "From Impressionism to modern art", ask: "Why did painters stop trying to copy reality?", src: "smart", q: "impressionism" },
+    { id: "h14", track: "hum", title: "How music works", ask: "What do rhythm, melody and harmony each do?", src: "yt", q: "music theory basics rhythm melody harmony" },
+    { id: "h15", track: "hum", title: "Architecture through history", ask: "What do buildings tell you about the values of their time?", src: "smart", q: "architecture" },
+    { id: "h16", track: "hum", title: "Why stories matter", ask: "Why do the same story shapes (like the hero's journey) appear everywhere?", src: "yt", q: "the hero's journey explained" }
+  ]
+};
