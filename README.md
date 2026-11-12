@@ -25,6 +25,16 @@ Everything on My courses is one list with two ways to slice it:
 
 `starterPlan` in `data.js` adds a plan to My courses once as "Up next" (currently the CU Boulder MS-CS degree, TOGAF 10 and IAPP AIGP certifications, and official readings: NIST AI RMF, ISO/IEC 42001, EU AI Act, GDPR, NIST SP 1270, the TOGAF Standard). Change its `id` to add new items later.
 
+## Daily
+
+The **Daily** tab is a learning calendar for spare minutes: 10–20 minutes a day, any time, to understand how the world works.
+
+- **One track per weekday:** Mon Mathematics · Tue Physical sciences · Wed Life sciences & health · Thu Engineering & technology · Fri Society (economics, psychology, politics, history) · Sat Humanities (philosophy, art, music, stories) · **Sun Review & connect**.
+- Each track has 16 units in a deliberate order (Season 1: 96 units ≈ 4 months). Every unit has a **key question**, a 15-minute **Learn** link (Khan Academy, Crash Course/3Blue1Brown videos, Stanford Encyclopedia of Philosophy, Smarthistory, Our World in Data) and a **Quick read** on Wikipedia. Links use each site's search so they don't break.
+- Write a two-sentence answer from memory and mark it learned. Sunday shows this week's questions plus ones from about a month ago (spaced review).
+- Missed a day? Nothing is skipped; units move forward. Not in the mood? Pick another track for today. A calendar shows the plan and what you did; the streak counts days with learning or review.
+- Content lives in `daily.js`; progress is included in Export/Import backups.
+
 ## Plan
 
 The **Plan** tab is a phased study plan: a swimlane timeline on top and a step-by-step checklist below.

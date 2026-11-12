@@ -8,7 +8,7 @@
     // Apply the saved theme before the page paints, so there is no flash of the wrong colors.
     try { var t = JSON.parse(localStorage.getItem("skillmap.theme")); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=17" />
+  <link rel="stylesheet" href="styles.css?v=18" />
 </head>
 <body>
   <header class="topbar">
@@ -18,6 +18,7 @@
     </div>
     <nav class="tabs" role="tablist">
       <button class="tab active" role="tab" data-view="log" aria-selected="true">My courses <span id="log-count" class="pill">0</span></button>
+      <button class="tab" role="tab" data-view="daily" aria-selected="false">Daily</button>
       <button class="tab" role="tab" data-view="plan" aria-selected="false">Plan</button>
       <button class="tab" role="tab" data-view="graph" aria-selected="false">Skill map</button>
     </nav>
@@ -30,6 +31,37 @@
   </header>
 
   <!-- ─────────── Graph view ─────────── -->
+  <main id="view-daily" class="view">
+    <section class="daily-wrap">
+      <div class="card daily-head">
+        <div>
+          <h2>Daily learning</h2>
+          <p class="meta" id="daily-season"></p>
+        </div>
+        <div id="daily-stats" class="daily-stats"></div>
+      </div>
+
+      <div class="daily-main">
+        <div id="daily-card" class="card daily-card" aria-live="polite"></div>
+        <div class="card daily-cal">
+          <div class="cal-head">
+            <button type="button" class="btn small" id="cal-prev" aria-label="Previous month">‹</button>
+            <h3 id="cal-title"></h3>
+            <button type="button" class="btn small" id="cal-next" aria-label="Next month">›</button>
+            <button type="button" class="btn small link" id="cal-today">Today</button>
+          </div>
+          <div id="cal-grid" class="cal-grid"></div>
+          <div id="cal-legend" class="cal-legend"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="sec-head"><h2>Tracks</h2><span class="meta">One track per weekday; Sunday is review. Units in a track build on each other.</span></div>
+        <div id="daily-tracks" class="daily-tracks"></div>
+      </div>
+    </section>
+  </main>
+
   <main id="view-plan" class="view">
     <section class="plan-wrap">
       <div class="card plan-head">
@@ -240,7 +272,8 @@
     </section>
   </main>
 
-  <script src="data.js?v=17"></script>
-  <script src="app.js?v=17"></script>
+  <script src="data.js?v=18"></script>
+  <script src="daily.js?v=18"></script>
+  <script src="app.js?v=18"></script>
 </body>
 </html>

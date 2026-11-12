@@ -881,6 +881,7 @@
     nodes.forEach(drawNode); applyFocus(); renderStats(); renderPanel(); renderLog();
     if (typeof renderKnownMatch === "function" && $("f-url")) renderKnownMatch();
     if (document.body.dataset.view === "plan" && typeof renderPlan === "function") renderPlan();
+    if (document.body.dataset.view === "daily" && typeof renderDaily === "function") renderDaily();
   }
   function rebuild() {
     buildGraph(); renderGraph(); settle(60); reheat(0.4); refreshAll();
@@ -911,6 +912,7 @@
     document.body.dataset.view = name; store.set(KEYS.tab, name);
     if (name === "graph" && view.k === 1 && view.x === 0) requestAnimationFrame(fit);
     if (name === "plan" && typeof renderPlan === "function") renderPlan();
+    if (name === "daily" && typeof renderDaily === "function") renderDaily();
   }
   document.querySelectorAll(".tab").forEach((t) => t.addEventListener("click", () => switchView(t.dataset.view)));
 
@@ -1649,7 +1651,8 @@
   });
 
   $("export").addEventListener("click", () => {
-    const blob = new Blob([JSON.stringify({ version: 2, exported: today(), log, courseStatus, learned: [...manualLearned], levels, focus, progress, categories, courseCat, certs, custom }, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify({ version: 2, exported: today(), log, courseStatus, learned: [...manualLearned], levels, focus, progress, categories, courseCat, certs, custom,
+      daily: dailyDone, dailyReviews }, null, 2)], { type: "application/json" });
     const a = h("a", { href: URL.createObjectURL(blob), download: `learning-path-${today()}.json` });
     document.body.append(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
@@ -1668,6 +1671,9 @@
       if (typeof data.focus === "string") focus = data.focus;
       if (data.progress && typeof data.progress === "object") progress = { ...progress, ...data.progress };
       if (Array.isArray(data.categories)) data.categories.forEach((k) => { if (k && k.id && k.name && !catById(k.id)) categories.push(k); });
+      if (data.daily && typeof data.daily === "object") { dailyDone = { ...dailyDone, ...data.daily }; }
+      if (data.dailyReviews && typeof data.dailyReviews === "object") { dailyReviews = { ...dailyReviews, ...data.dailyReviews }; }
+      if (data.daily || data.dailyReviews) saveDaily();
       if (Array.isArray(data.certs)) data.certs.forEach((c) => { if (c && c.id && c.name && Array.isArray(c.exams) && !certs.some((x) => x.id === c.id)) certs.push(c); });
       if (data.courseCat && typeof data.courseCat === "object") courseCat = { ...courseCat, ...data.courseCat };
       if (data.custom) {
@@ -1968,6 +1974,196 @@
   }
   document.querySelectorAll(".rng-btn").forEach((b) => b.addEventListener("click", () => { planMonths = +b.dataset.months; savePlan(); renderPlan(); }));
 
+  // ───────────────────────── Daily learning calendar ─────────────────────────
+  const DD = window.DAILY_DATA;
+  let dailyDone = store.get("skillmap.daily", {}) || {};          // unit id → { date, note }
+  let dailyReviews = store.get("skillmap.dailyReviews", {}) || {}; // date → true
+  let dailyOverride = store.get("skillmap.dailyOverride", null);   // { date, track } when you pick another track today
+  let dailySel = null, calMonth = null;
+  const saveDaily = () => { store.set("skillmap.daily", dailyDone); store.set("skillmap.dailyReviews", dailyReviews); store.set("skillmap.dailyOverride", dailyOverride); };
+  const dToday = () => isoOf(new Date());
+  const isoOf = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const dateOf = (iso) => new Date(iso + "T00:00:00");
+  const addDays = (iso, n) => { const d = dateOf(iso); d.setDate(d.getDate() + n); return isoOf(d); };
+  const dTrack = (id) => DD.tracks.find((t) => t.id === id);
+  const unitsOf = (trackId) => DD.units.filter((u) => u.track === trackId);
+  const srcUrl = (u) => (DD.sources[u.src] || DD.sources.wiki).url + encodeURIComponent(u.q);
+  const wikiUrl = (u) => DD.sources.wiki.url + encodeURIComponent(u.title);
+
+  function trackForDate(iso) {
+    if (dailyOverride && dailyOverride.date === iso && iso === dToday()) return dTrack(dailyOverride.track);
+    const wd = dateOf(iso).getDay();
+    return DD.tracks.find((t) => t.day === wd) || null; // null = review day
+  }
+  // What to learn on a date: done units stay on their day; today and future days take the next units in order
+  function planForDate(iso) {
+    const t0 = dToday(), track = trackForDate(iso);
+    const doneHere = DD.units.filter((u) => dailyDone[u.id] && dailyDone[u.id].date === iso);
+    if (!track) return { review: true, done: doneHere };
+    const doneSame = doneHere.find((u) => u.track === track.id);
+    if (doneSame) return { track, unit: doneSame, done: doneHere, status: "done" };
+    if (iso < t0) return { track, unit: null, done: doneHere, status: doneHere.length ? "other" : "missed" };
+    const open = unitsOf(track.id).filter((u) => !dailyDone[u.id]);
+    let idx = 0;
+    for (let d = t0; d < iso; d = addDays(d, 1)) {
+      const t = trackForDate(d);
+      if (t && t.id === track.id && !DD.units.some((u) => u.track === t.id && dailyDone[u.id] && dailyDone[u.id].date === d)) idx++;
+    }
+    return { track, unit: open[idx] || null, done: doneHere, status: open[idx] ? (iso === t0 ? "today" : "planned") : "complete" };
+  }
+  function streak() {
+    const active = (iso) => DD.units.some((u) => dailyDone[u.id] && dailyDone[u.id].date === iso) || dailyReviews[iso];
+    let d = dToday(), n = 0;
+    if (!active(d)) d = addDays(d, -1);
+    while (active(d)) { n++; d = addDays(d, -1); }
+    return n;
+  }
+  function reviewItems(iso) {
+    // last 7 days, plus items learned 3–5 weeks ago (spaced repetition)
+    const age = (u) => Math.round((dateOf(iso) - dateOf(dailyDone[u.id].date)) / 86400000);
+    const learned = DD.units.filter((u) => dailyDone[u.id]);
+    return {
+      week: learned.filter((u) => age(u) >= 0 && age(u) <= 7),
+      spaced: learned.filter((u) => age(u) >= 21 && age(u) <= 35)
+    };
+  }
+  function learnUnit(u, note) { dailyDone[u.id] = { date: dToday(), note: (note || "").trim() }; saveDaily(); renderDaily(); }
+  function unlearn(u) { delete dailyDone[u.id]; saveDaily(); renderDaily(); }
+
+  function unitCard(plan, iso) {
+    const u = plan.unit, t = plan.track, isToday = iso === dToday();
+    const pos = unitsOf(t.id).indexOf(u) + 1, total = unitsOf(t.id).length;
+    const done = dailyDone[u.id];
+    const note = h("textarea", { rows: 2, placeholder: "From memory: answer the question in two sentences. (Optional, but this is what makes it stick.)", "aria-label": "Your answer" });
+    if (done && done.note) note.value = done.note;
+    const box = h("div", { class: "unit", style: `--t:${t.color}` },
+      h("div", { class: "unit-top" },
+        h("span", { class: "track-badge", text: `${t.icon} ${t.name}` }),
+        h("span", { class: "meta", text: `Unit ${pos} of ${total}` })),
+      h("h3", { class: "unit-title", text: u.title }),
+      h("p", { class: "unit-ask" }, h("span", { class: "ask-label", text: "Key question" }), u.ask),
+      h("div", { class: "unit-links" },
+        h("a", { class: "btn primary small", href: safeUrl(srcUrl(u)), target: "_blank", rel: "noopener noreferrer", text: `Learn (~15 min) · ${DD.sources[u.src].name} ↗` }),
+        u.src !== "wiki" ? h("a", { class: "btn small", href: safeUrl(wikiUrl(u)), target: "_blank", rel: "noopener noreferrer", text: "Quick read · Wikipedia ↗" }) : null));
+    if (done) {
+      box.append(h("div", { class: "unit-done" },
+        h("span", { class: "badge ok", text: `✓ Learned ${done.date}` }),
+        done.note ? h("p", { class: "unit-note", text: done.note }) : null,
+        h("button", { class: "btn small link", text: "Undo", onclick: () => unlearn(u) })));
+    } else if (iso >= dToday() || plan.status === "other") {
+      box.append(note, h("div", { class: "row" },
+        h("button", { class: "btn small primary", text: isToday ? "✓ Mark learned" : "✓ Learn it now", onclick: () => learnUnit(u, note.value) })));
+    }
+    return box;
+  }
+
+  function renderDaily() {
+    if (!DD || !$("daily-card")) return;
+    const t0 = dToday();
+    if (!dailySel) dailySel = t0;
+    if (!calMonth) calMonth = t0.slice(0, 7);
+    // header stats
+    $("daily-season").textContent = `${DD.season} · 10–20 minutes a day, any time. Missed a day? Nothing is skipped; it moves forward.`;
+    const learnedN = DD.units.filter((u) => dailyDone[u.id]).length;
+    const weekStart = addDays(t0, -((dateOf(t0).getDay() + 6) % 7));
+    let weekN = 0; for (let i = 0; i < 7; i++) { const d = addDays(weekStart, i); if (DD.units.some((u) => dailyDone[u.id] && dailyDone[u.id].date === d) || dailyReviews[d]) weekN++; }
+    const st = $("daily-stats"); st.textContent = "";
+    st.append(statTile(`🔥 ${streak()}`, "Day streak"), statTile(`${weekN}/7`, "Days this week"), statTile(`${learnedN}/${DD.units.length}`, "Units learned"));
+
+    // card for the selected day
+    const card = $("daily-card"); card.textContent = "";
+    const plan = planForDate(dailySel);
+    const isToday = dailySel === t0;
+    const dLabel = dateOf(dailySel).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+    card.append(h("div", { class: "day-head" },
+      h("h2", { text: isToday ? `Today · ${dLabel}` : dLabel }),
+      !isToday ? h("button", { class: "btn small link", text: "Back to today", onclick: () => { dailySel = t0; calMonth = t0.slice(0, 7); renderDaily(); } }) : null));
+    if (plan.review) {
+      const r = reviewItems(dailySel);
+      const reviewed = dailyReviews[dailySel];
+      const item = (u) => {
+        const t = dTrack(u.track), n = dailyDone[u.id].note;
+        const ans = h("p", { class: "unit-note", hidden: true, text: n || "(no answer saved)" });
+        return h("li", { class: "rev-item", style: `--t:${t.color}` },
+          h("div", null, h("span", { class: "rev-track", text: t.icon }), h("b", { text: u.title })),
+          h("p", { class: "unit-ask", text: u.ask }),
+          h("button", { class: "btn small", text: "Show my answer", onclick: (e) => { ans.hidden = !ans.hidden; e.target.textContent = ans.hidden ? "Show my answer" : "Hide"; } }), ans);
+      };
+      card.append(h("div", { class: "unit", style: `--t:${DD.review.color}` },
+        h("div", { class: "unit-top" }, h("span", { class: "track-badge", text: `${DD.review.icon} ${DD.review.name}` })),
+        h("p", { class: "unit-ask" }, "Answer each question from memory first, then check your note. Finish by writing one sentence that connects two topics from different tracks."),
+        r.week.length ? h("h4", { class: "rev-h", text: "This week" }) : null,
+        r.week.length ? h("ol", { class: "rev-list" }, ...r.week.map(item)) : h("p", { class: "meta", text: "Nothing learned in the last 7 days yet." }),
+        r.spaced.length ? h("h4", { class: "rev-h", text: "From about a month ago (spaced review)" }) : null,
+        r.spaced.length ? h("ol", { class: "rev-list" }, ...r.spaced.map(item)) : null,
+        reviewed ? h("span", { class: "badge ok", text: "✓ Reviewed" })
+          : (dailySel <= t0 ? h("button", { class: "btn small primary", text: "✓ Done reviewing", onclick: () => { dailyReviews[dailySel] = true; saveDaily(); renderDaily(); } }) : null)));
+    } else if (plan.unit) {
+      card.append(unitCard(plan, dailySel));
+    } else if (plan.status === "missed") {
+      card.append(h("p", { class: "meta", text: `No ${plan.track.short} unit that day. Nothing is lost: it moves to the next ${dateOf(dailySel).toLocaleDateString("en-US", { weekday: "long" })}.` }));
+    } else if (plan.status === "complete") {
+      card.append(h("p", { class: "meta", text: `🎉 You've finished every ${plan.track.name} unit in this season.` }));
+    }
+    // other units learned that day
+    const extra = plan.done.filter((u) => !plan.unit || u.id !== plan.unit.id);
+    if (extra.length) card.append(h("div", { class: "also" }, h("span", { class: "meta", text: "Also learned this day: " }), ...extra.map((u) => h("span", { class: "chip", style: "cursor:default", text: `${dTrack(u.track).icon} ${u.title}` }))));
+    // swap track (today only)
+    if (isToday) {
+      card.append(h("div", { class: "swap" }, h("span", { class: "meta", text: plan.review ? "Prefer something new today? Pick a track:" : "Not in the mood? Do another track today:" }),
+        ...DD.tracks.filter((t) => !plan.track || t.id !== plan.track.id).map((t) => h("button", { class: "chip", style: `--t:${t.color}`, onclick: () => { dailyOverride = { date: t0, track: t.id }; saveDaily(); renderDaily(); } },
+          h("span", { class: "dot", style: `background:${t.color}` }), t.short)),
+        dailyOverride && dailyOverride.date === t0 ? h("button", { class: "btn small link", text: "Back to today's track", onclick: () => { dailyOverride = null; saveDaily(); renderDaily(); } }) : null));
+    }
+
+    // calendar
+    const [y, m] = calMonth.split("-").map(Number);
+    $("cal-title").textContent = new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+    const grid = $("cal-grid"); grid.textContent = "";
+    ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].forEach((d) => grid.append(h("div", { class: "cal-dow", text: d })));
+    const first = new Date(y, m - 1, 1), lead = (first.getDay() + 6) % 7, days = new Date(y, m, 0).getDate();
+    for (let i = 0; i < lead; i++) grid.append(h("div", { class: "cal-cell empty" }));
+    for (let d = 1; d <= days; d++) {
+      const iso = `${calMonth}-${String(d).padStart(2, "0")}`;
+      const p = planForDate(iso), t = p.review ? DD.review : p.track;
+      const did = p.done.length > 0 || dailyReviews[iso];
+      const cls = ["cal-cell", iso === t0 ? "today" : "", iso === dailySel ? "sel" : "", did ? "did" : "", iso < t0 && !did ? "past" : ""].join(" ");
+      grid.append(h("button", { class: cls, style: `--t:${t.color}`, title: p.review ? DD.review.name : `${t.name}${p.unit ? ": " + p.unit.title : ""}`,
+        onclick: () => { dailySel = iso; renderDaily(); } },
+        h("span", { class: "cal-num", text: String(d) }),
+        h("span", { class: "cal-icon", text: did ? "✓" : t.icon })));
+    }
+    const lg = $("cal-legend"); lg.textContent = "";
+    [...DD.tracks.slice().sort((a, b) => ((a.day + 6) % 7) - ((b.day + 6) % 7)), DD.review].forEach((t) =>
+      lg.append(h("span", null, h("i", { style: `background:${t.color}` }), `${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][t.day]} · ${t.short || t.name}`)));
+
+    // tracks
+    const tr = $("daily-tracks"); tr.textContent = "";
+    DD.tracks.forEach((t) => {
+      const us = unitsOf(t.id), dn = us.filter((u) => dailyDone[u.id]).length;
+      const det = h("details", { class: "track", style: `--t:${t.color}` },
+        h("summary", null,
+          h("span", { class: "track-name", text: `${t.icon} ${t.name}` }),
+          h("span", { class: "meta", text: `${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][t.day]} · ${t.why}` }),
+          h("span", { class: "track-prog" }, h("span", { text: `${dn}/${us.length}` }),
+            h("span", { class: "progress mini" }, h("div", { style: `width:${(dn / us.length) * 100}%;background:${t.color}` })))));
+      const ol = h("ol", { class: "track-units" });
+      us.forEach((u) => ol.append(h("li", { class: dailyDone[u.id] ? "done" : "" },
+        h("input", { type: "checkbox", checked: dailyDone[u.id] ? true : null, "aria-label": "Learned: " + u.title,
+          onchange: (e) => (e.target.checked ? learnUnit(u, "") : unlearn(u)) }),
+        h("a", { href: safeUrl(srcUrl(u)), target: "_blank", rel: "noopener noreferrer", text: u.title + " ↗" }),
+        h("span", { class: "meta", text: u.ask }))));
+      det.append(ol);
+      tr.append(det);
+    });
+  }
+  if ($("cal-prev")) {
+    const shift = (n) => { const [y, m] = calMonth.split("-").map(Number); const d = new Date(y, m - 1 + n, 1); calMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; renderDaily(); };
+    $("cal-prev").addEventListener("click", () => shift(-1));
+    $("cal-next").addEventListener("click", () => shift(1));
+    $("cal-today").addEventListener("click", () => { dailySel = dToday(); calMonth = dailySel.slice(0, 7); renderDaily(); });
+  }
+
   // ───────────────────────── light / dark theme ─────────────────────────
   function applyTheme(choice) {
     if (choice === "light" || choice === "dark") document.documentElement.dataset.theme = choice;
@@ -2023,7 +2219,7 @@
   });
   buildGraph(); renderGraph(); settle(320); positionAll();
   refreshAll(); renderConceptPicker();
-  switchView(["graph", "plan"].includes(store.get(KEYS.tab, "log")) ? store.get(KEYS.tab, "log") : "log");
+  switchView(["graph", "plan", "daily"].includes(store.get(KEYS.tab, "log")) ? store.get(KEYS.tab, "log") : "log");
   requestAnimationFrame(fit);
   window.addEventListener("resize", () => { clearTimeout(window.__fitT); window.__fitT = setTimeout(fit, 150); });
 })();
