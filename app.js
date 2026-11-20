@@ -2171,7 +2171,8 @@
   let careerSel = store.get("skillmap.careerSel", null);
   let careerTarget = store.get("skillmap.careerTarget", null);
   let careerProve = store.get("skillmap.careerProve", {}) || {};
-  const saveCareer = () => { store.set("skillmap.careerSel", careerSel); store.set("skillmap.careerTarget", careerTarget); store.set("skillmap.careerProve", careerProve); };
+  let careerMarket = store.get("skillmap.careerMarket", "us");
+  const saveCareer = () => { store.set("skillmap.careerSel", careerSel); store.set("skillmap.careerTarget", careerTarget); store.set("skillmap.careerProve", careerProve); store.set("skillmap.careerMarket", careerMarket); };
 
   function readiness(path) {
     const entries = Object.entries(path.skills).filter(([id]) => conceptById[id]);
@@ -2213,6 +2214,12 @@
     hb.append(statTile(`${best.r.pct}%`, "Closest path", best.p.name));
     const tgt = scored.find((x) => x.p.id === careerTarget);
     hb.append(tgt ? statTile(`${tgt.r.pct}%`, "★ Your target", tgt.p.name) : statTile("–", "★ Your target", "Pick one below"));
+    if (CD.markets) {
+      const mk = h("div", { class: "layout-toggle market-toggle", role: "group", "aria-label": "Job market for pay" }, h("span", { class: "lt-label", text: "Pay in" }));
+      Object.entries(CD.markets).forEach(([k, v]) => mk.append(h("button", { class: "gb-btn" + (careerMarket === k ? " on" : ""), text: { us: "🇺🇸 US", au: "🇦🇺 Australia", nz: "🇳🇿 NZ" }[k] || v, title: v,
+        onclick: () => { careerMarket = k; saveCareer(); renderCareer(); } })));
+      hb.append(mk);
+    }
 
     // map: rows = paths, columns = now → next → later → long term
     const map = $("career-map"); map.textContent = "";
@@ -2228,7 +2235,8 @@
       const pick = () => { careerSel = p.id; saveCareer(); renderCareer(); };
       map.append(h("button", { class: "cm-label" + (sel ? " sel" : ""), style: `grid-row:${row};grid-column:1;--c:${p.color}`, onclick: pick },
         h("span", { class: "cm-name", text: (isT ? "★ " : "") + p.name }),
-        h("span", { class: "cm-ready" }, h("span", { class: "progress mini" }, h("div", { style: `width:${r.pct}%;background:${p.color}` })), h("b", { text: `${r.pct}%` }), h("span", { class: "meta", text: " ready" }))));
+        h("span", { class: "cm-ready" }, h("span", { class: "progress mini" }, h("div", { style: `width:${r.pct}%;background:${p.color}` })), h("b", { text: `${r.pct}%` }), h("span", { class: "meta", text: " ready" })),
+        (() => { const m = p.pay && p.pay[careerMarket]; const first = m && m.ranges[0]; return first ? h("span", { class: "cm-pay", text: first[1] }) : null; })()));
       p.ladder.slice(0, 2).forEach((role, k) => map.append(h("button", { class: "cm-cell" + (sel ? " sel" : ""), style: `grid-row:${row};grid-column:${k + 3};--c:${p.color}`, onclick: pick },
         h("span", { class: "cm-arrow", text: "→" }), h("span", { class: "cm-node", text: role }))));
       if (p.ladder[2]) map.append(h("div", { class: "cm-top" + (sel ? " sel" : ""), style: `grid-row:${row};grid-column:5;--c:${p.color}`, title: p.ladder[2] }, h("span", { class: "cm-node top", text: p.ladder[2] })));
@@ -2273,6 +2281,21 @@
               h("input", { type: "checkbox", checked: careerProve[key] ? true : null, onchange: (e) => { if (e.target.checked) careerProve[key] = today(); else delete careerProve[key]; saveCareer(); renderCareer(); } }),
               h("span", { class: careerProve[key] ? "done" : "", text: t })));
           })))));
+    if (p.pay) {
+      const m = p.pay[careerMarket] || { ranges: [], employers: [] };
+      const tabs = h("div", { class: "layout-toggle", role: "group", "aria-label": "Job market" });
+      Object.entries(CD.markets).forEach(([k, v]) => tabs.append(h("button", { class: "gb-btn" + (careerMarket === k ? " on" : ""), text: v, onclick: () => { careerMarket = k; saveCareer(); renderCareer(); } })));
+      det.append(h("section", { class: "cd-pay" },
+        h("div", { class: "cd-pay-head" }, h("h4", { text: "Pay & employers" }), tabs),
+        m.ranges.length ? h("table", { class: "pay-table" },
+          h("thead", null, h("tr", null, h("th", { text: "Role / level" }), h("th", { text: "Range" }), h("th", { text: "Note" }))),
+          h("tbody", null, ...m.ranges.map(([role, range, note]) => h("tr", null, h("td", { text: role }), h("td", { class: "pay-range", text: range }), h("td", { class: "meta", text: note || "" })))))
+          : h("p", { class: "meta", text: m.note || "No reliable figures found for this market." }),
+        m.employers.length ? h("div", { class: "cd-employers" }, h("span", { class: "meta", text: "Employers hiring for this kind of role: " }), ...m.employers.map((e) => h("span", { class: "chip", style: "cursor:default", text: e }))) : null,
+        h("p", { class: "pay-note", text: CD.payNote }),
+        h("details", { class: "pay-sources" }, h("summary", { text: `Sources (${CD.paySources.length})` }),
+          h("ul", null, ...CD.paySources.map((x) => h("li", null, h("a", { href: safeUrl(x.url), target: "_blank", rel: "noopener noreferrer", text: x.label + " ↗" })))))));
+    }
   }
 
   // ───────────────────────── light / dark theme ─────────────────────────
