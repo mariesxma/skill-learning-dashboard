@@ -882,6 +882,7 @@
     if (typeof renderKnownMatch === "function" && $("f-url")) renderKnownMatch();
     if (document.body.dataset.view === "plan" && typeof renderPlan === "function") renderPlan();
     if (document.body.dataset.view === "daily" && typeof renderDaily === "function") renderDaily();
+    if (document.body.dataset.view === "career" && typeof renderCareer === "function") renderCareer();
   }
   function rebuild() {
     buildGraph(); renderGraph(); settle(60); reheat(0.4); refreshAll();
@@ -913,6 +914,7 @@
     if (name === "graph" && view.k === 1 && view.x === 0) requestAnimationFrame(fit);
     if (name === "plan" && typeof renderPlan === "function") renderPlan();
     if (name === "daily" && typeof renderDaily === "function") renderDaily();
+    if (name === "career" && typeof renderCareer === "function") renderCareer();
   }
   document.querySelectorAll(".tab").forEach((t) => t.addEventListener("click", () => switchView(t.dataset.view)));
 
@@ -2164,6 +2166,115 @@
     $("cal-today").addEventListener("click", () => { dailySel = dToday(); calMonth = dailySel.slice(0, 7); renderDaily(); });
   }
 
+  // ───────────────────────── Career paths ─────────────────────────
+  const CD = window.CAREER_DATA;
+  let careerSel = store.get("skillmap.careerSel", null);
+  let careerTarget = store.get("skillmap.careerTarget", null);
+  let careerProve = store.get("skillmap.careerProve", {}) || {};
+  const saveCareer = () => { store.set("skillmap.careerSel", careerSel); store.set("skillmap.careerTarget", careerTarget); store.set("skillmap.careerProve", careerProve); };
+
+  function readiness(path) {
+    const entries = Object.entries(path.skills).filter(([id]) => conceptById[id]);
+    if (!entries.length) return { pct: 0, met: 0, total: 0, gaps: [] };
+    let sum = 0, met = 0;
+    const gaps = [];
+    entries.forEach(([id, need]) => {
+      const lv = levelOf(id);
+      sum += Math.min(lv / need, 1);
+      if (lv >= need) met++; else gaps.push({ id, need, lv });
+    });
+    gaps.sort((a, b) => (b.need - b.lv) - (a.need - a.lv) || b.need - a.need);
+    return { pct: Math.round((sum / entries.length) * 100), met, total: entries.length, gaps };
+  }
+  function credState(ref) {
+    const [kind, id] = ref.split(":");
+    if (kind === "cert") {
+      const t = (D.certifications || []).find((x) => x.id === id);
+      const c = certs.find((x) => x.templateId === id);
+      if (!t) return null;
+      if (!c) return { label: t.short || t.name, status: "Not tracked yet", cls: "none", certId: id };
+      const passed = c.exams.filter((e) => e.status === "passed").length;
+      return { label: t.short || t.name, status: passed === c.exams.length ? "✓ Passed" : passed ? `${passed}/${c.exams.length} exams passed` : certState(c) === "in-progress" ? "Preparing" : "Planned", cls: passed === c.exams.length ? "ok" : passed || certState(c) === "in-progress" ? "prog" : "none", url: t.url };
+    }
+    const c = allCourses().find((x) => x.id === id);
+    if (!c) return null;
+    const st = c.status === "completed" ? "✓ Done" : c.status === "in-progress" ? `In progress · ${coursePct(c)}%` : c.status === "planned" ? "Up next" : "Not started";
+    return { label: shortTitle(c.title), status: st, cls: c.status === "completed" ? "ok" : c.status === "in-progress" ? "prog" : "none", url: c.url };
+  }
+
+  function renderCareer() {
+    if (!CD || !$("career-map")) return;
+    const scored = CD.paths.map((p) => ({ p, r: readiness(p) }));
+    const best = [...scored].sort((a, b) => b.r.pct - a.r.pct)[0];
+    if (!careerSel || !CD.paths.some((p) => p.id === careerSel)) careerSel = careerTarget || best.p.id;
+
+    // header: closest path and target
+    const hb = $("career-best"); hb.textContent = "";
+    hb.append(statTile(`${best.r.pct}%`, "Closest path", best.p.name));
+    const tgt = scored.find((x) => x.p.id === careerTarget);
+    hb.append(tgt ? statTile(`${tgt.r.pct}%`, "★ Your target", tgt.p.name) : statTile("–", "★ Your target", "Pick one below"));
+
+    // map: rows = paths, columns = now → next → later → long term
+    const map = $("career-map"); map.textContent = "";
+    const rows = scored.length;
+    map.style.setProperty("--rows", rows);
+    map.append(h("div", { class: "cm-h", style: "grid-column:1" }, ""));
+    CD.horizon.forEach((t, i) => map.append(h("div", { class: "cm-h", style: `grid-column:${i + 2}`, text: t })));
+    map.append(h("div", { class: "cm-h", style: "grid-column:6", text: "Can converge" }));
+    map.append(h("div", { class: "cm-now", style: `grid-row:2 / span ${rows};grid-column:2` }, h("span", { class: "cm-node now", text: CD.now }), h("span", { class: "meta", text: "you are here" })));
+    map.append(h("div", { class: "cm-conv", style: `grid-row:2 / span ${rows};grid-column:6` }, h("span", { class: "cm-node conv", text: CD.convergence.title }), h("span", { class: "meta", text: CD.convergence.note })));
+    scored.forEach(({ p, r }, i) => {
+      const row = i + 2, sel = p.id === careerSel, isT = p.id === careerTarget;
+      const pick = () => { careerSel = p.id; saveCareer(); renderCareer(); };
+      map.append(h("button", { class: "cm-label" + (sel ? " sel" : ""), style: `grid-row:${row};grid-column:1;--c:${p.color}`, onclick: pick },
+        h("span", { class: "cm-name", text: (isT ? "★ " : "") + p.name }),
+        h("span", { class: "cm-ready" }, h("span", { class: "progress mini" }, h("div", { style: `width:${r.pct}%;background:${p.color}` })), h("b", { text: `${r.pct}%` }), h("span", { class: "meta", text: " ready" }))));
+      p.ladder.slice(0, 2).forEach((role, k) => map.append(h("button", { class: "cm-cell" + (sel ? " sel" : ""), style: `grid-row:${row};grid-column:${k + 3};--c:${p.color}`, onclick: pick },
+        h("span", { class: "cm-arrow", text: "→" }), h("span", { class: "cm-node", text: role }))));
+      if (p.ladder[2]) map.append(h("div", { class: "cm-top" + (sel ? " sel" : ""), style: `grid-row:${row};grid-column:5;--c:${p.color}`, title: p.ladder[2] }, h("span", { class: "cm-node top", text: p.ladder[2] })));
+    });
+
+    // detail for the selected path
+    const sp = scored.find((x) => x.p.id === careerSel), p = sp.p, r = sp.r;
+    const det = $("career-detail"); det.textContent = ""; det.style.setProperty("--c", p.color);
+    const steps = p.steps.map((id) => D.plan.steps.find((s) => s.id === id)).filter(Boolean);
+    const stepDone = (s) => stepLink(s).done;
+    const order = (id) => D.plan.steps.findIndex((s) => s.id === id) + 1;
+    const nextStep = steps.slice().sort((a, b) => order(a.id) - order(b.id)).find((s) => !stepDone(s));
+    const goStep = (id) => { switchView("plan"); requestAnimationFrame(() => { const el = document.getElementById("step-" + id); if (el) { el.scrollIntoView({ behavior: "smooth", block: "center" }); el.classList.add("flash"); setTimeout(() => el.classList.remove("flash"), 1400); } }); };
+    det.append(
+      h("div", { class: "cd-head" },
+        h("div", null, h("h2", { text: p.name }), h("p", { class: "cd-ladder", text: [CD.now, ...p.ladder].join("  →  ") })),
+        h("div", { class: "cd-actions" },
+          h("div", { class: "cd-score" }, h("b", { text: `${r.pct}%` }), h("span", { class: "meta", text: ` ready · ${r.met}/${r.total} skills at the level needed` })),
+          h("button", { class: "btn small" + (careerTarget === p.id ? " primary" : ""), text: careerTarget === p.id ? "★ My target" : "☆ Set as my target",
+            onclick: () => { careerTarget = careerTarget === p.id ? null : p.id; saveCareer(); renderCareer(); } }))),
+      h("div", { class: "cd-grid" },
+        h("section", null, h("h4", { text: "What you'd do" }), h("p", { text: p.what }), h("h4", { text: "Why it fits you" }), h("p", { text: p.fit }),
+          nextStep ? h("div", { class: "cd-next" }, h("span", { class: "meta", text: "Next step for this path" }),
+            h("button", { class: "btn small primary", text: `#${order(nextStep.id)} ${nextStep.title} →`, onclick: () => goStep(nextStep.id) })) : h("p", { class: "badge ok", text: "All plan steps for this path are done" })),
+        h("section", null, h("h4", { text: `Biggest skill gaps (${r.gaps.length})` }),
+          r.gaps.length ? h("div", { class: "cd-gaps" }, ...r.gaps.slice(0, 8).map((g) => h("button", { class: "chip gap", onclick: () => goToConcept(g.id), title: "Open on the Skill map" },
+            conceptById[g.id].label, h("span", { class: "gap-lv", text: ` L${g.lv}→${g.need}` })))) : h("p", { class: "badge ok", text: "Every skill is at the level this role needs" }),
+          h("h4", { text: "Credentials & courses" }),
+          h("ul", { class: "cd-creds" }, ...p.creds.map(credState).filter(Boolean).map((c) => h("li", { class: c.cls },
+            c.url ? h("a", { href: safeUrl(c.url), target: "_blank", rel: "noopener noreferrer", text: c.label + " ↗" }) : h("span", { text: c.label }),
+            h("span", { class: "cd-st", text: c.status }),
+            c.certId ? h("button", { class: "btn small", text: "Track", onclick: () => { addCertFromTemplate(c.certId); renderCareer(); } }) : null))))),
+      h("div", { class: "cd-grid" },
+        h("section", null, h("h4", { text: `Plan steps that build this path (${steps.filter(stepDone).length}/${steps.length} done)` }),
+          h("ol", { class: "cd-steps" }, ...steps.sort((a, b) => order(a.id) - order(b.id)).map((s) => h("li", { class: stepDone(s) ? "done" : "" },
+            h("span", { class: "step-num", style: "--c:var(--accent)", text: String(order(s.id)) }),
+            h("button", { class: "btn link small", text: s.title, onclick: () => goStep(s.id) }))))),
+        h("section", null, h("h4", { text: "Prove it at work" }),
+          h("ul", { class: "cd-prove" }, ...p.prove.map((t, i) => {
+            const key = `${p.id}|${i}`;
+            return h("li", null, h("label", null,
+              h("input", { type: "checkbox", checked: careerProve[key] ? true : null, onchange: (e) => { if (e.target.checked) careerProve[key] = today(); else delete careerProve[key]; saveCareer(); renderCareer(); } }),
+              h("span", { class: careerProve[key] ? "done" : "", text: t })));
+          })))));
+  }
+
   // ───────────────────────── light / dark theme ─────────────────────────
   function applyTheme(choice) {
     if (choice === "light" || choice === "dark") document.documentElement.dataset.theme = choice;
@@ -2219,7 +2330,7 @@
   });
   buildGraph(); renderGraph(); settle(320); positionAll();
   refreshAll(); renderConceptPicker();
-  switchView(["graph", "plan", "daily"].includes(store.get(KEYS.tab, "log")) ? store.get(KEYS.tab, "log") : "log");
+  switchView(["graph", "plan", "daily", "career"].includes(store.get(KEYS.tab, "log")) ? store.get(KEYS.tab, "log") : "log");
   requestAnimationFrame(fit);
   window.addEventListener("resize", () => { clearTimeout(window.__fitT); window.__fitT = setTimeout(fit, 150); });
 })();
