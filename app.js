@@ -2203,8 +2203,22 @@
     return { label: shortTitle(c.title), status: st, cls: c.status === "completed" ? "ok" : c.status === "in-progress" ? "prog" : "none", url: c.url };
   }
 
+  function renderLocation() {
+    const L = CD.location, box = $("career-location");
+    if (!L || !box) return;
+    box.textContent = "";
+    box.append(h("summary", null, h("h2", { text: L.title })),
+      h("div", { class: "loc-table-wrap" }, h("table", { class: "loc-table" },
+        h("thead", null, h("tr", null, h("th", { text: "" }), h("th", { text: "🇦🇺 Sydney" }), h("th", { text: "🇺🇸 United States" }))),
+        h("tbody", null, ...L.rows.map(([k, a, b]) => h("tr", null, h("th", { text: k }), h("td", { text: a }), h("td", { text: b })))))),
+      h("div", { class: "loc-advice" }, h("h4", { text: "Recommendation" }), h("ol", null, ...L.advice.map((t) => h("li", { text: t })))),
+      h("p", { class: "pay-note", text: "Based on reports and news checked Nov 2026. Your citizenship, family and lifestyle matter as much as pay." }),
+      h("details", { class: "pay-sources" }, h("summary", { text: `Sources (${L.sources.length})` }),
+        h("ul", null, ...L.sources.map((x) => h("li", null, h("a", { href: safeUrl(x.url), target: "_blank", rel: "noopener noreferrer", text: x.label + " ↗" }))))));
+  }
   function renderCareer() {
     if (!CD || !$("career-map")) return;
+    renderLocation();
     const scored = CD.paths.map((p) => ({ p, r: readiness(p) }));
     const best = [...scored].sort((a, b) => b.r.pct - a.r.pct)[0];
     if (!careerSel || !CD.paths.some((p) => p.id === careerSel)) careerSel = careerTarget || best.p.id;

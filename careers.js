@@ -32,6 +32,29 @@ window.CAREER_DATA = {
     { label: "Hays NZ: highest paying IT jobs", url: "https://www.hays.net.nz/it/career-advice/the-highest-paying-it-jobs-new-zealand" },
     { label: "Levels.fyi: Solution architect, Auckland", url: "https://www.levels.fyi/t/solution-architect/locations/auckland-nzl" }
   ],
+  location: {
+    title: "Sydney vs. United States",
+    rows: [
+      ["AI job demand", "Growing fast: Australian job postings asking for AI skills roughly doubled, from about 20,000 in 2024 to 41,000 in 2025 (PwC). Sydney holds about 37% of Australia's ML and data talent.", "The largest AI job market by far, with the most roles at every level."],
+      ["Frontier AI companies", "OpenAI opened a Sydney office in Dec 2025; Anthropic announced one in Mar 2026 (sales, research, engineering). Google Cloud, AWS, Microsoft and Databricks hire locally.", "Headquarters of most frontier labs and AI platforms."],
+      ["Pay", "Strong locally (see each path's Australia tab); the big jumps come with Lead/Principal or Director scope, or a global tech/AI employer.", "Roughly 1.5–2× nominal pay for similar roles, plus more equity at top firms; much higher cost of living and health insurance."],
+      ["Getting there", "No move needed.", "Australian citizens can use the E-3 work visa with a US job offer (much easier than H-1B). Without Australian citizenship it is much harder."],
+      ["Working remotely for a US company", "Possible but rare: many US firms avoid hiring abroad because of tax and payroll rules.", "—"],
+      ["Market conditions", "Competitive and selective, but hot pockets in AI, data, security and cloud; overall employment growth is slowing.", "Large but very competitive; layoffs and return-to-office have tightened some markets."]
+    ],
+    advice: [
+      "Stay in Sydney for the next 2–3 years and aim for Lead / Principal at a global tech or AI company's Sydney office, or Director at a top consulting firm.",
+      "Build the scarce combination of hands-on AI, governance and consulting, which is especially rare in Sydney.",
+      "If you later want the higher US ceiling, an internal transfer from a global company (or the E-3 visa, if you're an Australian citizen) is the easiest route."
+    ],
+    sources: [
+      { label: "PwC: 2026 AI Jobs Barometer (Australia)", url: "https://www.pwc.com.au/media/2026/2026-AI-Jobs-Barometer.html" },
+      { label: "Anthropic: Sydney, fourth office in Asia-Pacific", url: "https://www.anthropic.com/news/sydney-fourth-office-asia-pacific" },
+      { label: "Mediaweek: OpenAI expands to Sydney", url: "https://mediaweek.com.au/openai-expands-to-sydney-despite-companys-code-red-call" },
+      { label: "Deloitte: How AI will reshape Australia's workforce", url: "https://www.deloitte.com/au/en/services/economics/blogs/how-ai-reshape-australia-workforce.html" },
+      { label: "Working in the US on an E-3 visa", url: "https://americajosh.com/blog/general/working-remotely-in-america-as-an-australian-on-an-e3d-or-e3s/" }
+    ]
+  },
   paths: [
     {
       id: "fde", name: "Forward Deployed Engineer", color: "#7c5cff",

@@ -8,7 +8,7 @@
     // Apply the saved theme before the page paints, so there is no flash of the wrong colors.
     try { var t = JSON.parse(localStorage.getItem("skillmap.theme")); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=20" />
+  <link rel="stylesheet" href="styles.css?v=21" />
 </head>
 <body>
   <header class="topbar">
@@ -121,6 +121,7 @@
         <div id="career-map" class="career-map" aria-label="Career map from now to the long term"></div>
       </div>
       <div id="career-detail" class="card career-detail" aria-live="polite"></div>
+      <details id="career-location" class="card career-location" open></details>
     </section>
   </main>
 
@@ -289,9 +290,9 @@
     </section>
   </main>
 
-  <script src="data.js?v=20"></script>
-  <script src="daily.js?v=20"></script>
-  <script src="careers.js?v=20"></script>
-  <script src="app.js?v=20"></script>
+  <script src="data.js?v=21"></script>
+  <script src="daily.js?v=21"></script>
+  <script src="careers.js?v=21"></script>
+  <script src="app.js?v=21"></script>
 </body>
 </html>
