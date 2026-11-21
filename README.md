@@ -39,6 +39,7 @@ The **Daily** tab is a learning calendar for spare minutes: 10–20 minutes a da
 
 The **Career** tab maps where your current role (AI consultant) and learning can lead:
 
+- **What to learn first, ranked by return:** eight investments (Claude Code, portfolio, consulting communication, AIGP, leading engagements, TOGAF, CS50x, MS-CS) ranked by career value per hour and time to payoff, with effort, cost, the paths each boosts, live Plan status and when the MS-CS is worth it.
 - **Career map:** six paths (Forward Deployed Engineer, AI Solutions Architect, AI Governance & Responsible AI Lead, Enterprise Architect, AI Strategy Consulting Leader, AI Product Manager), each from now → 1–2 years → 3–5 years → long term, converging on Head of AI / Chief AI Officer.
 - **Readiness** per path is calculated from your Skill map levels against the level each role needs; the closest path and your ★ target are shown at the top.
 - For the selected path: what you'd do, why it fits, the biggest skill gaps (click to open on the Skill map), credentials and courses with their status, the Plan steps that build it (click to jump), the next step, and a "Prove it at work" checklist.

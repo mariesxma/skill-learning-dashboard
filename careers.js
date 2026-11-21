@@ -32,6 +32,38 @@ window.CAREER_DATA = {
     { label: "Hays NZ: highest paying IT jobs", url: "https://www.hays.net.nz/it/career-advice/the-highest-paying-it-jobs-new-zealand" },
     { label: "Levels.fyi: Solution architect, Auckland", url: "https://www.levels.fyi/t/solution-architect/locations/auckland-nzl" }
   ],
+  // What to learn first for the highest return: ranked by value per hour and how soon it pays off.
+  // `steps` are Plan step ids (status comes from the Plan); `paths` are the career paths it boosts.
+  roi: {
+    note: "Ranked by career value per hour of effort and how soon it pays off, for an AI consultant in Sydney. Hours and costs are estimates; check official pages for current fees.",
+    items: [
+      { rank: 1, title: "Claude Code and agentic coding tools", hours: "≈ 5–10 h", cost: "Free course", payoff: "Immediately", value: 4, effort: 1,
+        paths: ["fde", "arch", "strategy", "pm"], steps: ["s-cc"],
+        why: "The least effort for an immediate gain: you build prototypes and client demos several times faster from day one." },
+      { rank: 2, title: "Portfolio: FDE course → MCP project → client demo package", hours: "≈ 80 h", cost: "Course already bought", payoff: "3–6 months", value: 5, effort: 3,
+        paths: ["fde", "arch", "strategy", "pm"], steps: ["s-fde", "s-mcp", "s-client-demo"],
+        why: "A consultant's most valuable asset is proof. A working demo wins engagements and promotion cases faster than any certificate." },
+      { rank: 3, title: "Consulting communication (Emory courses + pyramid writing)", hours: "≈ 15 h + practice", cost: "Coursera trial or subscription", payoff: "Immediately", value: 4, effort: 1,
+        paths: ["strategy", "gov", "ea", "pm"], steps: ["s-emory-1", "s-emory-2", "s-memos"],
+        why: "Moving from consultant to Manager / Director depends mostly on structuring problems and convincing executives, which you use every day." },
+      { rank: 4, title: "AIGP certification", hours: "≈ 70 h", cost: "Exam fee (see IAPP)", payoff: "6–12 months", value: 5, effort: 3,
+        paths: ["gov", "strategy", "arch"], steps: ["s-aigp-bok", "s-aigp-practice", "s-aigp-exam"],
+        why: "Clients ask about AI risk and compliance constantly and few people can answer well. It is the strongest differentiator for the time it takes." },
+      { rank: 5, title: "Lead an engagement end to end and help win new work", hours: "On the job", cost: "None", payoff: "6–18 months", value: 5, effort: 3, action: true,
+        paths: ["strategy", "arch", "fde"], steps: [],
+        why: "Not a course, but the biggest pay lever: Lead / Principal / Director roles are earned by owning delivery and client relationships." },
+      { rank: 6, title: "TOGAF 10 (Part 1 + 2)", hours: "≈ 70 h", cost: "Exam fees (see The Open Group)", payoff: "12+ months", value: 3, effort: 3,
+        paths: ["ea", "arch", "strategy"], steps: ["s-togaf-std", "s-togaf-1", "s-togaf-2"],
+        why: "Valued by banks, government and large enterprises, but it mainly pays off in architecture roles." },
+      { rank: 7, title: "CS50x", hours: "≈ 110 h", cost: "Free", payoff: "Indirect", value: 2, effort: 3,
+        paths: ["fde", "arch"], steps: ["s-cs50-a", "s-cs50-b"],
+        why: "Foundations that make engineering work and the MS-CS easier; little direct effect on consulting pay." },
+      { rank: 8, title: "Master of Science in Computer Science (CU Boulder)", hours: "≈ 1,000+ h", cost: "≈ US$16K tuition (check official page)", payoff: "2–3 years", value: 4, effort: 5,
+        paths: ["fde", "arch", "pm"], steps: ["s-mscs-pathway"],
+        why: "High long-term and credential value, but the lowest return per hour and the slowest payoff.",
+        when: "Worth it if you don't have a CS degree and want engineering-heavy roles, if you may move to the US (work visas usually need a relevant degree or equivalent experience), or if you aim for Head of AI / CTO. Otherwise it can wait or be skipped." }
+    ]
+  },
   location: {
     title: "Sydney vs. United States",
     rows: [

@@ -771,3 +771,31 @@ body[data-view="career"] .theme-toggle { margin-left: auto; }
 .career-location > * { min-width: 0; }
 .career-location[open] { grid-template-columns: minmax(0, 1fr); }
 .career-location .pay-sources summary { list-style: revert; }
+
+/* ── Career: learning ranked by return ── */
+.career-roi { display: grid; gap: 10px; }
+.career-roi .sec-head { margin-bottom: 0; }
+.roi-note { margin: 0; color: var(--muted); font-size: 13px; }
+.roi-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.roi-item { display: grid; grid-template-columns: 36px 1fr; gap: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; }
+.roi-item:nth-child(-n+3) { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); background: color-mix(in srgb, var(--accent) 5%, var(--surface)); }
+.roi-item.done { opacity: .7; }
+.roi-rank { width: 32px; height: 32px; border-radius: 99px; display: grid; place-items: center; font-weight: 800; background: var(--accent); color: #fff; }
+.roi-item:nth-child(n+4) .roi-rank { background: var(--surface-2); color: var(--text); }
+.roi-main { display: grid; gap: 4px; min-width: 0; }
+.roi-title { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; font-size: 15px; }
+.roi-status { font-size: 11px; font-weight: 700; color: var(--muted); border: 1px solid var(--border); border-radius: 99px; padding: 0 8px; }
+.roi-status.ok { color: #0f9f6e; border-color: #0f9f6e; }
+.roi-status.action { color: var(--accent); border-color: var(--accent); }
+.roi-meta { display: flex; gap: 6px 16px; flex-wrap: wrap; align-items: center; font-size: 12px; }
+.roi-meta .meta { color: var(--muted); }
+.roi-kv { display: inline-flex; align-items: center; gap: 4px; }
+.roi-bar { display: inline-flex; gap: 2px; }
+.roi-bar i { width: 10px; height: 8px; border-radius: 2px; background: var(--surface-2); border: 1px solid var(--border); }
+.roi-bar.ret i.on { background: #0f9f6e; border-color: #0f9f6e; }
+.roi-bar.eff i.on { background: #e08a00; border-color: #e08a00; }
+.roi-why, .roi-when { margin: 0; font-size: 13px; }
+.roi-when { color: var(--text); background: var(--surface-2); border-radius: 8px; padding: 6px 8px; }
+.roi-foot { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; align-items: center; }
+.roi-paths { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.roi-paths .chip { margin: 0; font-size: 11px; padding: 1px 8px; }
