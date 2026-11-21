@@ -735,3 +735,39 @@ body[data-view="career"] .theme-toggle { margin-left: auto; }
   .career-wrap { padding: 12px; }
   .cd-grid { grid-template-columns: 1fr; }
 }
+
+/* ── Career: pay & employers ── */
+.career-best { align-items: center; }
+.market-toggle { align-self: center; }
+.cm-pay { font-size: 11px; font-weight: 700; color: var(--muted); }
+.cd-pay { display: grid; gap: 10px; border-top: 1px solid var(--border); padding-top: 14px; }
+.cd-pay-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.cd-pay-head h4 { margin: 0; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.pay-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.pay-table th { text-align: left; font-size: 11px; color: var(--muted); font-weight: 700; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+.pay-table td { padding: 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.pay-table td.pay-range { font-weight: 800; color: var(--c); white-space: nowrap; }
+.pay-table td.meta { color: var(--muted); font-size: 12px; }
+.cd-employers { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.cd-employers .chip { margin: 0; }
+.pay-note { margin: 0; font-size: 12px; color: var(--muted); }
+.pay-sources summary { cursor: pointer; font-size: 12px; font-weight: 700; color: var(--muted); }
+.pay-sources ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 2px; font-size: 12px; }
+@media (max-width: 760px) { .pay-table td.pay-range { white-space: normal; } }
+
+/* ── Career: Sydney vs US ── */
+.career-location summary { cursor: pointer; list-style: none; }
+.career-location summary::-webkit-details-marker { display: none; }
+.career-location summary h2::before { content: "▸ "; color: var(--muted); }
+.career-location[open] summary h2::before { content: "▾ "; }
+.career-location[open] { display: grid; gap: 12px; }
+.loc-table-wrap { overflow-x: auto; }
+.loc-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 620px; }
+.loc-table th, .loc-table td { text-align: left; vertical-align: top; padding: 9px 10px; border-bottom: 1px solid var(--border); }
+.loc-table thead th { font-size: 12px; color: var(--muted); }
+.loc-table tbody th { font-weight: 700; width: 170px; }
+.loc-advice h4 { margin: 0 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.loc-advice ol { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 14px; }
+.career-location > * { min-width: 0; }
+.career-location[open] { grid-template-columns: minmax(0, 1fr); }
+.career-location .pay-sources summary { list-style: revert; }

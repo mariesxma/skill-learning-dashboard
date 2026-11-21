@@ -42,6 +42,7 @@ The **Career** tab maps where your current role (AI consultant) and learning can
 - **Career map:** six paths (Forward Deployed Engineer, AI Solutions Architect, AI Governance & Responsible AI Lead, Enterprise Architect, AI Strategy Consulting Leader, AI Product Manager), each from now → 1–2 years → 3–5 years → long term, converging on Head of AI / Chief AI Officer.
 - **Readiness** per path is calculated from your Skill map levels against the level each role needs; the closest path and your ★ target are shown at the top.
 - For the selected path: what you'd do, why it fits, the biggest skill gaps (click to open on the Skill map), credentials and courses with their status, the Plan steps that build it (click to jump), the next step, and a "Prove it at work" checklist.
+- **Pay & employers** per path for the United States, Australia and New Zealand (switch market at the top or in the path detail): planning ranges with notes, employers that hire for the role, and 18 linked sources. Ranges are estimates checked Nov 2026; verify against current postings.
 - Paths live in `careers.js`. Titles vary between companies; calibrate with real job postings.
 
 ## Plan
