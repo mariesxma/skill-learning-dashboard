@@ -2216,9 +2216,41 @@
       h("details", { class: "pay-sources" }, h("summary", { text: `Sources (${L.sources.length})` }),
         h("ul", null, ...L.sources.map((x) => h("li", null, h("a", { href: safeUrl(x.url), target: "_blank", rel: "noopener noreferrer", text: x.label + " ↗" }))))));
   }
+  function renderRoi() {
+    const R = CD.roi, box = $("career-roi");
+    if (!R || !box) return;
+    box.textContent = "";
+    const pathById = (id) => CD.paths.find((p) => p.id === id);
+    const bar = (n, cls, label) => h("span", { class: "roi-bar " + cls, title: `${label}: ${n}/5` }, ...[1, 2, 3, 4, 5].map((i) => h("i", { class: i <= n ? "on" : "" })));
+    const list = h("ol", { class: "roi-list" });
+    R.items.forEach((it) => {
+      const steps = it.steps.map((id) => D.plan.steps.find((s) => s.id === id)).filter(Boolean);
+      const done = steps.filter((s) => stepLink(s).done).length;
+      const next = steps.find((s) => !stepLink(s).done);
+      const status = it.action ? h("span", { class: "roi-status action", text: "At work" })
+        : steps.length && done === steps.length ? h("span", { class: "roi-status ok", text: "✓ Done" })
+        : h("span", { class: "roi-status", text: `${done}/${steps.length} plan steps` });
+      list.append(h("li", { class: "roi-item" + (steps.length && done === steps.length ? " done" : "") },
+        h("span", { class: "roi-rank", text: String(it.rank) }),
+        h("div", { class: "roi-main" },
+          h("div", { class: "roi-title" }, h("b", { text: it.title }), status),
+          h("div", { class: "roi-meta" },
+            h("span", { class: "roi-kv" }, h("span", { class: "meta", text: "Return " }), bar(it.value, "ret", "Return")),
+            h("span", { class: "roi-kv" }, h("span", { class: "meta", text: "Effort " }), bar(it.effort, "eff", "Effort")),
+            h("span", { class: "meta", text: `${it.hours} · ${it.cost} · pays off: ${it.payoff}` })),
+          h("p", { class: "roi-why", text: it.why }),
+          it.when ? h("p", { class: "roi-when" }, h("b", { text: "When it's worth it: " }), it.when) : null,
+          h("div", { class: "roi-foot" },
+            h("span", { class: "roi-paths" }, h("span", { class: "meta", text: "Boosts: " }), ...it.paths.map((pid) => { const p = pathById(pid); return p ? h("button", { class: "chip", style: `--t:${p.color}`, onclick: () => { careerSel = pid; saveCareer(); renderCareer(); document.getElementById("career-detail").scrollIntoView({ behavior: "smooth" }); } }, h("span", { class: "dot", style: `background:${p.color}` }), p.name) : null; })),
+            next ? h("button", { class: "btn small link", text: `Next: #${D.plan.steps.indexOf(next) + 1} in Plan →`, onclick: () => { switchView("plan"); requestAnimationFrame(() => { const el = document.getElementById("step-" + next.id); if (el) { el.scrollIntoView({ behavior: "smooth", block: "center" }); el.classList.add("flash"); setTimeout(() => el.classList.remove("flash"), 1400); } }); } }) : null))));
+    });
+    box.append(h("div", { class: "sec-head" }, h("h2", { text: "What to learn first: ranked by return" })),
+      h("p", { class: "meta roi-note", text: R.note }), list);
+  }
   function renderCareer() {
     if (!CD || !$("career-map")) return;
     renderLocation();
+    renderRoi();
     const scored = CD.paths.map((p) => ({ p, r: readiness(p) }));
     const best = [...scored].sort((a, b) => b.r.pct - a.r.pct)[0];
     if (!careerSel || !CD.paths.some((p) => p.id === careerSel)) careerSel = careerTarget || best.p.id;
